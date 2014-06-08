@@ -51,4 +51,23 @@ void addToList(struct List *list, char *key, void *value, char *type) {
         list->end = newList;
     }
 } 
-        
+
+void deleteList(struct List *list) {
+    struct List *next = current->next;
+    struct List *current = list->begin;
+    if (strcmp(current->data->type, "list") == 0) {
+        deleteList((struct List *) current->data->value);
+    }
+
+    free(current->data);
+    free(current);
+
+    if (current == list->end) {
+        return;
+    }
+
+    else {
+        deleteList(next);
+    }
+}
+
