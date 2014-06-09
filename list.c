@@ -100,11 +100,11 @@ static void printNode (struct Node *node, FILE *file) {
     }
 
     if (proceed) {
-            // Don't print a comma if next node data is an empty list.
-            if (strcmp(next->type, "list") != 0 || 
-                !isEmptyList((struct List *) next->value)) {
-                fprintf(file, ", ");
-            }
+        // Don't print a comma if next node data is an empty list.
+        if (strcmp(next->type, "list") != 0 || 
+            !isEmptyList((struct List *) next->value)) {
+            fprintf(file, ", ");
+        }
 
         printNode(next, file);
     }

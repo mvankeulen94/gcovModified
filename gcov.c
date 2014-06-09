@@ -38,6 +38,7 @@ along with Gcov; see the file COPYING3.  If not see
 #include "diagnostic.h"
 #include "version.h"
 #include "demangle.h"
+#include "list.h"
 
 #include <getopt.h>
 
@@ -664,15 +665,24 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
   unsigned line_num;    /* current line number.  */
   const line_t *line;   /* current line info ptr.  */
   function_t *fn;       /* current function info ptr. */
-
-  fprintf (gcov_file, "file:%s\n", src->name);    /* source file name */
-
+  struct List list;
+  
+  initList(&list);
+  addToList(&list, "file", src->name, "string");   /* source file name */
+  
+  struct List functions;
+  initList(&functions);
   for (fn = src->functions; fn; fn = fn->line_next)
     {
+        addToList(&list, "functions", &functions, "list");
       /* function:<name>,<line_number>,<execution_count> */
-      fprintf (gcov_file, "function:%d,%s,%s\n", fn->line,
-               format_gcov (fn->blocks[0].count, 0, -1),
-               flag_demangled_names ? fn->demangled_name : fn->name);
+        addToList(&functions, "ln", &(fn->line), "int");
+        addToList(&functions, "ec", 
+                  format_gcov(fn->blocks[0].count, 0, -1), 
+                  "string"); 
+        addToList(&functions, "nm",
+                 (flag_demangled_names ? fn->demangled_name : fn->name), 
+                 "string");
     }
 
   for (line_num = 1, line = &src->lines[line_num];
@@ -680,10 +690,18 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
        line_num++, line++)
     {
       arc_t *arc;
-      if (line->exists)
-        fprintf (gcov_file, "lcount:%u,%s\n", line_num,
-                 format_gcov (line->count, 0, -1));
-      if (flag_branches)
+      if (line->exists) {
+        struct List lc;
+        initList(&lc);
+        addToList(&list, "lc", &lc, "list");
+        addToList(&lc, "ln", &line_num, "int");
+        addToList(&lc, "ec", format_gcov (line->count, 0, -1));
+      }
+
+      if (flag_branches) {
+        struct List branch;
+        initList(&branch);
+        addToList(&list, "branch", &branch, "list");
         for (arc = line->u.branches; arc; arc = arc->line_next)
           {
             if (!arc->is_unconditional && !arc->is_call_non_return)
@@ -699,10 +717,14 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
                   branch_type = (arc->count > 0) ? "taken" : "nottaken";
                 else
                   branch_type = "notexec";
-                fprintf (gcov_file, "branch:%d,%s\n", line_num, branch_type);
+                addToList(&branch, "line_num", &line_num, "int");
+                addToList(&branch, "branch_type", branch_type, "string");
               }
           }
+      }
     }
+    printDocument(&list, gcov_file);
+    deleteList(&list);
 }
 
 
