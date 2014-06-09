@@ -12,9 +12,9 @@ struct List {
 };
 
 void deleteList(struct List *);
-void initList(struct List *list);
-int isEmptyList(struct List *list);
-void addToList(struct List *list, char *key, void *value, char *type);
-void deleteList(struct List *list);
-void printList(struct List *list);
-void printDocument(struct List *list);
+void initList(struct List *);
+int isEmptyList(struct List *);
+void addToList(struct List *, char *, void *, char *);
+void deleteList(struct List *);
+void printList(struct List *, FILE *);
+void printDocument(struct List *, FILE *);

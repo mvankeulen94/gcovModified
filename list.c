@@ -60,7 +60,7 @@ void deleteList (struct List *list) {
 }
 
 /* Helper function for printing the data in a struct List */
-static void printNode (struct Node *node) {
+static void printNode (struct Node *node, FILE *file) {
     int proceed = 1;
     struct Node *next = node->next;
     
@@ -74,39 +74,39 @@ static void printNode (struct Node *node) {
     if (strcmp(node->type, "list") == 0 && 
         !isEmptyList((struct List *) node->value)) {
 
-        fprintf(stdout, "%s:[", node->key);
-        printList((struct List *) node->value);
-        fprintf(stdout, "]");
+        fprintf(file, "%s: [", node->key);
+        printList((struct List *) node->value, file);
+        fprintf(file, "]");
     }
     
     if (strcmp(node->type, "int") == 0) {
-       fprintf(stdout, "%s:%d", node->key, *(int *) node->value);
+       fprintf(file, "%s: %d", node->key, *(int *) node->value);
     }
 
     if (strcmp(node->type, "string") == 0) {
-        fprintf(stdout, "%s:%s", node->key, (char *) node->value);
+        fprintf(file, "%s: %s", node->key, (char *) node->value);
     }
 
     if (proceed) {
             // Don't print a comma if node data is an empty list.
             if (strcmp(next->type, "list") != 0 || 
                 !isEmptyList((struct List *) next->value)) {
-                fprintf(stdout, ",");
+                fprintf(file, ", ");
             }
 
-        printNode(next);
+        printNode(next, file);
     }
 }
 
-void printList (struct List *list) {
-    printNode (list->front);
+void printList (struct List *list, FILE *file) {
+    printNode (list->front, file);
 }
 
-void printDocument (struct List *list) {
-    fprintf(stdout, "\n{");
-    printList(list);
-    fprintf(stdout, "}\n");
-    fflush(stdout);
+void printDocument (struct List *list, FILE *file) {
+    fprintf(file, "\n{");
+    printList(list, file);
+    fprintf(file, "}\n");
+    fflush(file);
 }
 
 int main() {
@@ -131,7 +131,7 @@ int main() {
     printf("%s\n", (char *) next->next->value);
     printf("%s\n", (char *) (list).back->value);
     printf("COMMENCING LIST PRINT\n");
-    printDocument(&list);
+    printDocument(&list, stdout);
 
     deleteList(&list);
   return 0;
