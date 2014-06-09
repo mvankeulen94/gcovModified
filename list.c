@@ -71,3 +71,15 @@ void deleteList(struct List *list) {
     }
 }
 
+int main() {
+    struct List list;
+    initList(&list);
+    addToList(&list, "h", 1, "int");
+    struct List sublist;
+    initList(&sublist);
+    addToList(&sublist, "hello", "lala", "string");
+    addToList(&list, "yo", &sublist, "list");
+    addToList(&list, "well", "huh?", "string");
+    deleteList(&list);
+}
+
