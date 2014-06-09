@@ -695,7 +695,7 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
         initList(&lc);
         addToList(&list, "lc", &lc, "list");
         addToList(&lc, "ln", &line_num, "int");
-        addToList(&lc, "ec", format_gcov (line->count, 0, -1));
+        addToList(&lc, "ec", format_gcov (line->count, 0, -1), "string");
       }
 
       if (flag_branches) {

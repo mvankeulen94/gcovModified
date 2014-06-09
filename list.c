@@ -17,8 +17,9 @@ int isEmptyList (struct List *list) {
     return list->front == NULL;
 }
 
-void addToList (struct List *list, char *key, void *value, char *type) {
-    struct Node *newNode = malloc(sizeof(struct Node));
+void addToList (struct List *list, const char *key, const void *value,
+                const char *type) {
+    struct Node *newNode = (struct Node *) malloc(sizeof(struct Node));
     if (newNode == NULL) {
         die("malloc failed");
     }
@@ -33,9 +34,9 @@ void addToList (struct List *list, char *key, void *value, char *type) {
         list->back = newNode;
     }
 
-    newNode->key = key;
-    newNode->value = value;
-    newNode->type = type;
+    newNode->key = (char *) key;
+    newNode->value = (void *) value;
+    newNode->type = (char *) type;
     newNode->next = NULL;
 }
 
