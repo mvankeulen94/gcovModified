@@ -61,8 +61,6 @@ static void printNode (struct Node *node) {
         proceed = 0;
     }
     
-    printf("{");
-
     if (strcmp(node->type, "list") == 0) {
         printf("%s:[", node->key);
         printList((struct List *) node->value);
@@ -82,13 +80,19 @@ static void printNode (struct Node *node) {
         printNode(next);
     }
 
-    printf("}");
     fflush(stdout);
 
 }
 
 void printList (struct List *list) {
     printNode (list->front);
+}
+
+void printDocument (struct List *list) {
+    printf("{");
+    printList(list);
+    printf("}");
+    fflush(stdout);
 }
 
 int main() {
@@ -105,6 +109,8 @@ int main() {
     printf("%s\n", next->type);
     printf("%s\n", (char *) next->next->value);
     printf("%s\n", (char *) (list).back->value);
+    printf("COMMENCING LIST PRINT\n");
+    printList(&list);
 
     deleteList(&list);
   return 0;
