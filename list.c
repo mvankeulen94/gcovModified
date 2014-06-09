@@ -70,6 +70,7 @@ static void printNode (struct Node *node) {
     }
    
     // If node has List as its value, recursively print list. 
+    // Only print list if list is not empty.
     if (strcmp(node->type, "list") == 0 && 
         !isEmptyList((struct List *) node->value)) {
 
@@ -87,7 +88,12 @@ static void printNode (struct Node *node) {
     }
 
     if (proceed) {
-        fprintf(stdout, ",");
+            // Don't print a comma if node data is an empty list.
+            if (strcmp(next->type, "list") != 0 || 
+                !isEmptyList((struct List *) next->value)) {
+                fprintf(stdout, ",");
+            }
+
         printNode(next);
     }
 }
