@@ -615,7 +615,7 @@ process_args (int argc, char **argv)
 static char *
 get_gcov_intermediate_filename (const char *file_name)
 {
-  const char *gcov = ".gcov";
+  const char *gcov = ".json";
   char *result;
   const char *cptr;
 

@@ -1,9 +1,9 @@
 struct Node {
     struct Node *next;
 
-    char *key;
-    void *value;
-    char *type;
+    const char *key;
+    const void *value;
+    const char *type;
 };
 
 struct List {
