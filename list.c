@@ -33,7 +33,6 @@ void addToList (struct List *list, char *key, void *value, char *type) {
 static void deleteNode (struct Node *node) {
     int proceed = 1;
     struct Node *next = node->next;
-    printf("%s\n", node->type);
     
     if (next == NULL) {
         proceed = 0;
@@ -41,12 +40,9 @@ static void deleteNode (struct Node *node) {
 
     if (strcmp(node->type, "list") == 0) {
         deleteList((struct List *) node->value);
-        printf("finished sublist delete\n");
     }
 
-        printf("about to delete %s\n", node->type);
         free(node);
-        printf("deleted from list\n");
 
     if (proceed) {
         deleteNode(next);
@@ -57,6 +53,43 @@ void deleteList (struct List *list) {
     deleteNode (list->front);
 }
 
+static void printNode (struct Node *node) {
+    int proceed = 1;
+    struct Node *next = node->next;
+    
+    if (next == NULL) {
+        proceed = 0;
+    }
+    
+    printf("{");
+
+    if (strcmp(node->type, "list") == 0) {
+        printf("%s:[", node->key);
+        printList((struct List *) node->value);
+        printf("]");
+    }
+    
+    if (strcmp(node->type, "int") == 0) {
+       printf("%s:%d", node->key, *(int *) node->value);
+    }
+
+    if (strcmp(node->type, "string") == 0) {
+        printf("%s:%s", node->key, (char *) node->value);
+    }
+
+    if (proceed) {
+        printf(",");
+        printNode(next);
+    }
+
+    printf("}");
+    fflush(stdout);
+
+}
+
+void printList (struct List *list) {
+    printNode (list->front);
+}
 
 int main() {
      struct List list;
