@@ -35,9 +35,31 @@ void addToList (struct List *list, const char *key, const void *value,
     }
 
     newNode->key = (char *) key;
-    newNode->value = (void *) value;
     newNode->type = (char *) type;
     newNode->next = NULL;
+
+    if (strcmp(newNode->type, "int") == 0) {
+        newNode->value = malloc(sizeof(int));
+        *((int *) newNode->value) = *(int *)value;
+    }
+
+    if (strcmp(newNode->type, "string") == 0) {
+        newNode->value = malloc(strlen((char *) value) + 1);
+        strcpy((char *) newNode->value, (char *) value);
+    }
+
+    if (strcmp(newNode->type, "list") == 0) {
+        newNode->value = malloc(sizeof(struct List));
+        struct List *newNodeList = (struct List *) newNode->value;
+        struct List *argList = (struct List *) value;
+        newNodeList->front = argList->front;
+        newNodeList->back = argList->back;
+    }
+
+    if (strcmp(newNode->type, "char") == 0) {
+        newNode->value = (char *) malloc(sizeof(char));
+        *((char *) newNode->value) = *(char *)value;
+    }
 }
 
 // Helper function for deleting data stored in a struct List. 
@@ -56,7 +78,7 @@ static void deleteNode (struct Node *node) {
 
         deleteList((struct List *) node->value);
     }
-
+    free(node->value);
     free(node);
 
     if (proceed) {
