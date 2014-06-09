@@ -30,58 +30,66 @@ void addToList (struct List *list, char *key, void *value, char *type) {
     newNode->type = type;
     newNode->next = NULL;
 }
+
+/* Helper function for deleting data stored in a struct List */
 static void deleteNode (struct Node *node) {
     int proceed = 1;
     struct Node *next = node->next;
     
+    // Determine whether to proceed to next recursive call.
     if (next == NULL) {
         proceed = 0;
     }
 
-    if (strcmp(node->type, "list") == 0) {
+    // If node has a List as its value, recursively delete list.
+    if (strcmp(node->type, "list") == 0 && 
+        !isEmptyList((struct List *) node->value)) {
+
         deleteList((struct List *) node->value);
     }
 
-        free(node);
+    free(node);
 
     if (proceed) {
         deleteNode(next);
     }
 }
-        
+
 void deleteList (struct List *list) {
     deleteNode (list->front);
 }
 
+/* Helper function for printing the data in a struct List */
 static void printNode (struct Node *node) {
     int proceed = 1;
     struct Node *next = node->next;
     
+    // Determine whether to proceed to next recursive call.
     if (next == NULL) {
         proceed = 0;
     }
-    
-    if (strcmp(node->type, "list") == 0) {
-        printf("%s:[", node->key);
+   
+    // If node has List as its value, recursively print list. 
+    if (strcmp(node->type, "list") == 0 && 
+        !isEmptyList((struct List *) node->value)) {
+
+        fprintf(stdout, "%s:[", node->key);
         printList((struct List *) node->value);
-        printf("]");
+        fprintf(stdout, "]");
     }
     
     if (strcmp(node->type, "int") == 0) {
-       printf("%s:%d", node->key, *(int *) node->value);
+       fprintf(stdout, "%s:%d", node->key, *(int *) node->value);
     }
 
     if (strcmp(node->type, "string") == 0) {
-        printf("%s:%s", node->key, (char *) node->value);
+        fprintf(stdout, "%s:%s", node->key, (char *) node->value);
     }
 
     if (proceed) {
-        printf(",");
+        fprintf(stdout, ",");
         printNode(next);
     }
-
-    fflush(stdout);
-
 }
 
 void printList (struct List *list) {
@@ -89,28 +97,35 @@ void printList (struct List *list) {
 }
 
 void printDocument (struct List *list) {
-    printf("{");
+    fprintf(stdout, "\n{");
     printList(list);
-    printf("}");
+    fprintf(stdout, "}\n");
     fflush(stdout);
 }
 
 int main() {
      struct List list;
     initList(&list);
-    addToList(&list, "h", "1", "int");
+    int x = 1;
+    addToList(&list, "h", &x, "int");
     struct List sublist;
     initList(&sublist);
     addToList(&sublist, "hello", "lala", "string");
     addToList(&list, "yo", &sublist, "list");
     addToList(&list, "well", "huh?", "string");
+    addToList(&sublist, "what", "heh", "string");
+    struct List subsublist;
+    initList(&subsublist);
+    addToList(&sublist, "nodalist", &subsublist, "list");
+//    addToList(&subsublist, "yo", "hi", "string");
+    addToList(&list, "lastelement", "weeeee", "string");
     printf("%s\n", (char *) list.front->value);
     struct Node *next = (list.front)->next;
     printf("%s\n", next->type);
     printf("%s\n", (char *) next->next->value);
     printf("%s\n", (char *) (list).back->value);
     printf("COMMENCING LIST PRINT\n");
-    printList(&list);
+    printDocument(&list);
 
     deleteList(&list);
   return 0;
