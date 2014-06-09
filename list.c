@@ -3,6 +3,11 @@
 #include <string.h>
 #include "list.h"
 
+static void die (const char *message) {
+    perror(message);
+    exit(1);
+}
+
 void initList (struct List *list) {
     list->front = NULL;
     list->back = NULL;
@@ -14,6 +19,9 @@ int isEmptyList (struct List *list) {
 
 void addToList (struct List *list, char *key, void *value, char *type) {
     struct Node *newNode = malloc(sizeof(struct Node));
+    if (newNode == NULL) {
+        die("malloc failed");
+    }
    
     if (isEmptyList(list)) {
         list->front = newNode; 
@@ -31,7 +39,7 @@ void addToList (struct List *list, char *key, void *value, char *type) {
     newNode->next = NULL;
 }
 
-/* Helper function for deleting data stored in a struct List */
+// Helper function for deleting data stored in a struct List. 
 static void deleteNode (struct Node *node) {
     int proceed = 1;
     struct Node *next = node->next;
@@ -59,7 +67,7 @@ void deleteList (struct List *list) {
     deleteNode (list->front);
 }
 
-/* Helper function for printing the data in a struct List */
+// Helper function for printing the data in a struct List.
 static void printNode (struct Node *node, FILE *file) {
     int proceed = 1;
     struct Node *next = node->next;
@@ -87,8 +95,12 @@ static void printNode (struct Node *node, FILE *file) {
         fprintf(file, "%s: %s", node->key, (char *) node->value);
     }
 
+    if (strcmp(node->type, "char") == 0) {
+        fprintf(file, "%s: %c", node->key, *(char *) node->value);
+    }
+
     if (proceed) {
-            // Don't print a comma if node data is an empty list.
+            // Don't print a comma if next node data is an empty list.
             if (strcmp(next->type, "list") != 0 || 
                 !isEmptyList((struct List *) next->value)) {
                 fprintf(file, ", ");
@@ -108,33 +120,4 @@ void printDocument (struct List *list, FILE *file) {
     fprintf(file, "}\n");
     fflush(file);
 }
-
-int main() {
-     struct List list;
-    initList(&list);
-    int x = 1;
-    addToList(&list, "h", &x, "int");
-    struct List sublist;
-    initList(&sublist);
-    addToList(&sublist, "hello", "lala", "string");
-    addToList(&list, "yo", &sublist, "list");
-    addToList(&list, "well", "huh?", "string");
-    addToList(&sublist, "what", "heh", "string");
-    struct List subsublist;
-    initList(&subsublist);
-    addToList(&sublist, "nodalist", &subsublist, "list");
-//    addToList(&subsublist, "yo", "hi", "string");
-    addToList(&list, "lastelement", "weeeee", "string");
-    printf("%s\n", (char *) list.front->value);
-    struct Node *next = (list.front)->next;
-    printf("%s\n", next->type);
-    printf("%s\n", (char *) next->next->value);
-    printf("%s\n", (char *) (list).back->value);
-    printf("COMMENCING LIST PRINT\n");
-    printDocument(&list, stdout);
-
-    deleteList(&list);
-  return 0;
-} 
-
 
