@@ -693,8 +693,7 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
     {
       arc_t *arc;
       if (line->exists) {
-        addToList(&lc, format_gcov(line_num, 0, -1), format_gcov (line->count, 0, -1), "string");
-        printf("line num: %s\n", format_gcov(line_num, 0, -1));
+        addToList(&lc, format_gcov(line_num, 0, -1), &line->count, "int");
       }
 
       if (flag_branches) {
