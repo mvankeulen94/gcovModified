@@ -110,7 +110,8 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
         !isEmptyList((struct List *) node->value)) {
 
         fprintf(file, "%s: [", node->key);
-        printList((struct List *) node->value, file);
+        struct List *subList = (struct List *) node->value;
+        printAndDeleteNode(subList->front, file);
         fprintf(file, "]");
     }
     
@@ -142,17 +143,11 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
     }
 }
 
-/* Helper function for printing the elements in a list.
- */
-void printList (struct List *list, FILE *file) {
-    printAndDeleteNode (list->front, file);
-}
-
 /* Print elements in a list as a JSON object.
  */
-void printDocument (struct List *list, FILE *file) {
+void printList (struct List *list, FILE *file) {
     fprintf(file, "\n{");
-    printList(list, file);
+    printAndDeleteNode(list->front, file);
     fprintf(file, "}\n");
     fflush(file);
 }
