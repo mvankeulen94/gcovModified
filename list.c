@@ -145,7 +145,7 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
 
 /* Print elements in a list as a JSON object.
  */
-void printList (struct List *list, FILE *file) {
+void printAndDeleteList (struct List *list, FILE *file) {
     fprintf(file, "\n{");
     printAndDeleteNode(list->front, file);
     fprintf(file, "}\n");
