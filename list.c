@@ -58,8 +58,8 @@ void addToList (struct List *list, const char *key, const void *value,
     strcpy(newNode->key, key);
 
     if (strcmp(newNode->type, "int") == 0) {
-        newNode->value = malloc(sizeof(int));
-        *((int *) newNode->value) = *(int *)value;
+        newNode->value = malloc(sizeof(long));
+        *((long *) newNode->value) = *(long *)value;
     }
 
     if (strcmp(newNode->type, "string") == 0) {
@@ -115,7 +115,7 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
     }
     
     if (strcmp(node->type, "int") == 0) {
-       fprintf(file, "%s: %d", node->key, *(int *) node->value);
+       fprintf(file, "%s: %lu", node->key, *(long *) node->value);
     }
 
     if (strcmp(node->type, "string") == 0) {

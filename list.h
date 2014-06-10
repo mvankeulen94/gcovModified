@@ -1,3 +1,5 @@
+#ifndef _LIST_H_
+#define _LIST_H_
 struct Node {
     struct Node *next;
 
@@ -19,3 +21,4 @@ void addToList(struct List *, const char *, const void *,
 void deleteList(struct List *);
 void printList(struct List *, FILE *);
 void printDocument(struct List *, FILE *);
+#endif

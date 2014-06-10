@@ -687,7 +687,9 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
 
   struct List lc;
   initList(&lc);
-  for (line_num = 1, line = &src->lines[line_num];
+  struct List branch;
+  initList(&branch);
+ for (line_num = 1, line = &src->lines[line_num];
        line_num < src->num_lines;
        line_num++, line++)
     {
@@ -697,8 +699,6 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
       }
 
       if (flag_branches) {
-        struct List branch;
-        initList(&branch);
         for (arc = line->u.branches; arc; arc = arc->line_next)
           {
             if (!arc->is_unconditional && !arc->is_call_non_return)
@@ -714,15 +714,14 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
                   branch_type = (arc->count > 0) ? "taken" : "nottaken";
                 else
                   branch_type = "notexec";
-                addToList(&branch, "line_num", &line_num, "int");
-                addToList(&branch, "branch_type", branch_type, "string");
+                addToList(&branch, format_gcov(line_num, 0, -1), branch_type, "string");
               }
           }
 
-          addToList(&list, "branch", &branch, "list");
       }
     }
 
+    addToList(&list, "branch", &branch, "list");
     addToList(&list, "lc", &lc, "list");
     printDocument(&list, gcov_file);
 }
