@@ -96,12 +96,12 @@ void addToList (struct List *list, const char *key, const void *value,
  * data in the Node and then frees data and Node.
  */
 static void printAndDeleteNode (struct Node *node, FILE *file) {
-    int proceed = 1;
+    int moreDataExists = 1;
     struct Node *next = node->next;
     
     // Determine whether to proceed to next recursive call.
     if (next == NULL) {
-        proceed = 0;
+        moreDataExists = 0;
     }
    
     // If node has List as its value, recursively print list. 
@@ -132,7 +132,7 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
     free(node->value);
     free(node);
 
-    if (proceed) {
+    if (moreDataExists) {
         // Don't print a comma if next node data is an empty list.
         if (strcmp(next->type, "list") != 0 || 
             !isEmptyList((struct List *) next->value)) {
