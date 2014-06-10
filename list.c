@@ -57,7 +57,7 @@ void addToList (struct List *list, const char *key, const void *value,
     }
     strcpy(newNode->key, key);
 
-    if (strcmp(newNode->type, "int") == 0) {
+    if (strcmp(newNode->type, "long") == 0) {
         newNode->value = malloc(sizeof(long));
         *((long *) newNode->value) = *(long *)value;
     }
@@ -82,8 +82,13 @@ void addToList (struct List *list, const char *key, const void *value,
     }
 
     if (strcmp(newNode->type, "char") == 0) {
-        newNode->value = (char *) malloc(sizeof(char));
+        newNode->value = malloc(sizeof(char));
         *((char *) newNode->value) = *(char *)value;
+    }
+
+    if (strcmp(newNode->type, "unsigned") == 0) {
+        newNode->value = malloc(sizeof(unsigned));
+        *((unsigned *) newNode->value) = *(unsigned *)value;
     }
 
     if (newNode->value == NULL) {
@@ -115,7 +120,7 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
         fprintf(file, "]");
     }
     
-    if (strcmp(node->type, "int") == 0) {
+    if (strcmp(node->type, "long") == 0) {
        fprintf(file, "%s: %lu", node->key, *(long *) node->value);
     }
 
@@ -125,6 +130,10 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
 
     if (strcmp(node->type, "char") == 0) {
         fprintf(file, "%s: %c", node->key, *(char *) node->value);
+    }
+
+    if (strcmp(node->type, "unsigned") == 0) {
+        fprintf(file, "%s: %u", node->key, *(unsigned *) node->value);
     }
 
     // Done printing current node, free allocated data.
