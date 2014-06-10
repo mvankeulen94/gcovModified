@@ -96,12 +96,12 @@ void addToList (struct List *list, const char *key, const void *value,
  * data in the Node and then frees data and Node.
  */
 static void printAndDeleteNode (struct Node *node, FILE *file) {
-    int proceed = 1;
+    int moreDataExists = 1;
     struct Node *next = node->next;
     
     // Determine whether to proceed to next recursive call.
     if (next == NULL) {
-        proceed = 0;
+        moreDataExists = 0;
     }
    
     // If node has List as its value, recursively print list. 
@@ -110,7 +110,8 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
         !isEmptyList((struct List *) node->value)) {
 
         fprintf(file, "%s: [", node->key);
-        printList((struct List *) node->value, file);
+        struct List *subList = (struct List *) node->value;
+        printAndDeleteNode(subList->front, file);
         fprintf(file, "]");
     }
     
@@ -131,7 +132,7 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
     free(node->value);
     free(node);
 
-    if (proceed) {
+    if (moreDataExists) {
         // Don't print a comma if next node data is an empty list.
         if (strcmp(next->type, "list") != 0 || 
             !isEmptyList((struct List *) next->value)) {
@@ -142,17 +143,11 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
     }
 }
 
-/* Helper function for printing the elements in a list.
- */
-void printList (struct List *list, FILE *file) {
-    printAndDeleteNode (list->front, file);
-}
-
 /* Print elements in a list as a JSON object.
  */
-void printDocument (struct List *list, FILE *file) {
+void printList (struct List *list, FILE *file) {
     fprintf(file, "\n{");
-    printList(list, file);
+    printAndDeleteNode(list->front, file);
     fprintf(file, "}\n");
     fflush(file);
 }
