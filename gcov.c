@@ -723,7 +723,7 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
 
     addToList(&list, "branch", &branch, "list");
     addToList(&list, "lc", &lc, "list");
-    printList(&list, gcov_file);
+    printAndDeleteList(&list, gcov_file);
 }
 
 

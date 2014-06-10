@@ -13,11 +13,9 @@ struct List {
     struct Node *back;
 };
 
-void deleteList(struct List *);
 void initList(struct List *);
 int isEmptyList(struct List *);
 void addToList(struct List *, const char *, const void *, 
                const char *);
-void deleteList(struct List *);
-void printList(struct List *, FILE *);
+void printAndDeleteList(struct List *, FILE *);
 #endif
