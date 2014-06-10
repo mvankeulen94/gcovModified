@@ -3,6 +3,9 @@
 #include <string.h>
 #include "list.h"
 
+#include "hwint.h"
+#include "gcov-io.h"
+
 /* This file consists of functions designed to manipulate
  * a linked list structure. The linked list consists of a
  * struct List, which keeps track of the first and last
@@ -58,8 +61,8 @@ void addToList (struct List *list, const char *key, const void *value,
     strcpy(newNode->key, key);
 
     if (strcmp(newNode->type, "int") == 0) {
-        newNode->value = malloc(sizeof(long));
-        *((long *) newNode->value) = *(long *)value;
+        newNode->value = malloc(sizeof(gcov_type));
+        *((gcov_type *) newNode->value) = *(gcov_type *)value;
     }
 
     if (strcmp(newNode->type, "string") == 0) {
