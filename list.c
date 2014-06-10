@@ -92,42 +92,10 @@ void addToList (struct List *list, const char *key, const void *value,
 
 }
 
-/* Helper function for deleting data stored in a struct List.
+/* Helper function for printing the data in a struct List. Prints
+ * data in the Node and then frees data and Node.
  */
-static void deleteNode (struct Node *node) {
-    int proceed = 1;
-    struct Node *next = node->next;
-    
-    // Determine whether to proceed to next recursive call.
-    if (next == NULL) {
-        proceed = 0;
-    }
-
-    // If node has a List as its value, recursively delete list.
-    if (strcmp(node->type, "list") == 0 && 
-        !isEmptyList((struct List *) node->value)) {
-
-        deleteList((struct List *) node->value);
-    }
-
-    free(node->key);
-    free(node->value);
-    free(node);
-
-    if (proceed) {
-        deleteNode(next);
-    }
-}
-
-/* Remove all data and list nodes from list.
- */
-void deleteList (struct List *list) {
-    deleteNode (list->front);
-}
-
-/* Helper function for printing the data in a struct List.
- */
-static void printNode (struct Node *node, FILE *file) {
+static void printAndDeleteNode (struct Node *node, FILE *file) {
     int proceed = 1;
     struct Node *next = node->next;
     
@@ -158,6 +126,11 @@ static void printNode (struct Node *node, FILE *file) {
         fprintf(file, "%s: %c", node->key, *(char *) node->value);
     }
 
+    // Done printing current node, free allocated data.
+    free(node->key);
+    free(node->value);
+    free(node);
+
     if (proceed) {
         // Don't print a comma if next node data is an empty list.
         if (strcmp(next->type, "list") != 0 || 
@@ -165,14 +138,14 @@ static void printNode (struct Node *node, FILE *file) {
             fprintf(file, ", ");
         }
 
-        printNode(next, file);
+        printAndDeleteNode(next, file);
     }
 }
 
 /* Helper function for printing the elements in a list.
  */
 void printList (struct List *list, FILE *file) {
-    printNode (list->front, file);
+    printAndDeleteNode (list->front, file);
 }
 
 /* Print elements in a list as a JSON object.
