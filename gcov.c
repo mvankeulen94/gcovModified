@@ -725,7 +725,6 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
 
     addToList(&list, "lc", &lc, "list");
     printDocument(&list, gcov_file);
-    deleteList(&list);
 }
 
 
