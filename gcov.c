@@ -675,7 +675,7 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
   for (fn = src->functions; fn; fn = fn->line_next)
     {
       /* function:<name>,<line_number>,<execution_count> */
-        addToList(&functions, "ln", &(fn->line), "int");
+        addToList(&functions, "ln", &(fn->line), "unsigned");
         addToList(&functions, "ec", 
                   format_gcov(fn->blocks[0].count, 0, -1), 
                   "string"); 
@@ -695,7 +695,7 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
     {
       arc_t *arc;
       if (line->exists) {
-        addToList(&lc, format_gcov(line_num, 0, -1), &line->count, "int");
+        addToList(&lc, format_gcov(line_num, 0, -1), &line->count, "long");
       }
 
       if (flag_branches) {
