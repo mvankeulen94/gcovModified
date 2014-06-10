@@ -3,6 +3,16 @@
 #include <string.h>
 #include "list.h"
 
+/* This file consists of functions designed to manipulate
+ * a linked list structure. The linked list consists of a
+ * struct List, which keeps track of the first and last
+ * elements of the list. Elements of the list are represented
+ * by struct Node. A node consists of a pointer to the next
+ * node, and pointers to the key, value, and type of the value
+ * stored by the node. This linked list is designed to output
+ * its data in the form of a JSON object.
+ */
+
 static void die (const char *message) {
     perror(message);
     exit(1);
@@ -17,6 +27,9 @@ int isEmptyList (struct List *list) {
     return list->front == NULL;
 }
 
+/* Add key/value entry to list. type represents the type of the 
+ * value.
+ */
 void addToList (struct List *list, const char *key, const void *value,
                 const char *type) {
     struct Node *newNode = (struct Node *) malloc(sizeof(struct Node));
@@ -36,7 +49,12 @@ void addToList (struct List *list, const char *key, const void *value,
 
     newNode->type = (char *) type;
     newNode->next = NULL;
+    
+    // Make copies of the key and value arguments
     newNode->key = (char *) malloc(strlen(key) + 1);
+    if (newNode->key == NULL) {
+        die("malloc failed");
+    }
     strcpy(newNode->key, key);
 
     if (strcmp(newNode->type, "int") == 0) {
@@ -67,9 +85,15 @@ void addToList (struct List *list, const char *key, const void *value,
         newNode->value = (char *) malloc(sizeof(char));
         *((char *) newNode->value) = *(char *)value;
     }
+
+    if (newNode->value == NULL) {
+        die("malloc failed");
+    }
+
 }
 
-// Helper function for deleting data stored in a struct List. 
+/* Helper function for deleting data stored in a struct List.
+ */
 static void deleteNode (struct Node *node) {
     int proceed = 1;
     struct Node *next = node->next;
@@ -95,11 +119,14 @@ static void deleteNode (struct Node *node) {
     }
 }
 
+/* Remove all data and list nodes from list.
+ */
 void deleteList (struct List *list) {
     deleteNode (list->front);
 }
 
-// Helper function for printing the data in a struct List.
+/* Helper function for printing the data in a struct List.
+ */
 static void printNode (struct Node *node, FILE *file) {
     int proceed = 1;
     struct Node *next = node->next;
@@ -142,10 +169,14 @@ static void printNode (struct Node *node, FILE *file) {
     }
 }
 
+/* Helper function for printing the elements in a list.
+ */
 void printList (struct List *list, FILE *file) {
     printNode (list->front, file);
 }
 
+/* Print elements in a list as a JSON object.
+ */
 void printDocument (struct List *list, FILE *file) {
     fprintf(file, "\n{");
     printList(list, file);
