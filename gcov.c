@@ -674,14 +674,17 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
   initList(&functions);
   for (fn = src->functions; fn; fn = fn->line_next)
     {
-      /* function:<name>,<line_number>,<execution_count> */
-        addToList(&functions, "ln", &(fn->line), "unsigned");
-        addToList(&functions, "ec", 
+        struct List functionAttributes;
+        initList(&functionAttributes);
+     /* function:<name>,<line_number>,<execution_count> */
+        addToList(&functionAttributes, "ln", &(fn->line), "unsigned");
+        addToList(&functionAttributes, "ec", 
                   format_gcov(fn->blocks[0].count, 0, -1), 
                   "string"); 
-        addToList(&functions, "nm",
-                 (flag_demangled_names ? fn->demangled_name : fn->name), 
-                 "string");
+        addToList(&functions, 
+                  (flag_demangled_names ? fn->demangled_name : fn->name),
+                  &functionAttributes,
+                  "object");
     }
   addToList(&list, "functions", &functions, "list");
 
