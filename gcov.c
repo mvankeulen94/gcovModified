@@ -905,10 +905,13 @@ generate_results (const char *file_name)
       total_executed += src->coverage.lines_executed;
       if (flag_gcov_file)
 	{
-          if (flag_intermediate_format)
+          if (flag_intermediate_format) {
             /* Output the intermediate format without requiring source
                files.  This outputs a section to a *single* file.  */
             output_intermediate_file (gcov_intermediate_file, src);
+            if (ix)
+                fprintf(gcov_intermediate_file, ", ");
+          }
           else
             output_gcov_file (file_name, src);
           fnotice (stdout, "\n");
