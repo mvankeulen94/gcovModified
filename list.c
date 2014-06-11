@@ -47,7 +47,7 @@ void addToList (struct List *list, const char *key, const void *value,
         list->back = newNode;
     }
 
-    newNode->type = (char *) type;
+    newNode->type = type;
     newNode->next = NULL;
     
     // Make copies of the key and value arguments
@@ -59,12 +59,12 @@ void addToList (struct List *list, const char *key, const void *value,
 
     if (strcmp(newNode->type, "long") == 0) {
         newNode->value = malloc(sizeof(long));
-        *((long *) newNode->value) = *(long *)value;
+        *((long *) newNode->value) = *(const long *)value;
     }
 
     if (strcmp(newNode->type, "string") == 0) {
-        newNode->value = malloc(strlen((char *) value) + 1);
-        strcpy((char *) newNode->value, (char *) value);
+        newNode->value = malloc(strlen((const char *) value) + 1);
+        strcpy((char *) newNode->value, (const char *) value);
     }
 
     /* Note that adding a node with data type "list" will
@@ -79,19 +79,19 @@ void addToList (struct List *list, const char *key, const void *value,
         strcmp(newNode->type, "object") == 0) {
         newNode->value = malloc(sizeof(struct List));
         struct List *newNodeList = (struct List *) newNode->value;
-        struct List *argList = (struct List *) value;
+        const struct List *argList = (const struct List *) value;
         newNodeList->front = argList->front;
         newNodeList->back = argList->back;
     }
 
     if (strcmp(newNode->type, "char") == 0) {
         newNode->value = malloc(sizeof(char));
-        *((char *) newNode->value) = *(char *)value;
+        *((char *) newNode->value) = *(const char *)value;
     }
 
     if (strcmp(newNode->type, "unsigned") == 0) {
         newNode->value = malloc(sizeof(unsigned));
-        *((unsigned *) newNode->value) = *(unsigned *)value;
+        *((unsigned *) newNode->value) = *(const unsigned *)value;
     }
 
     if (newNode->value == NULL) {
