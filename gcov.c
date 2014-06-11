@@ -665,18 +665,22 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
   unsigned line_num;    /* current line number.  */
   const line_t *line;   /* current line info ptr.  */
   function_t *fn;       /* current function info ptr. */
-  struct List list;
+  struct List list;     /* list to store info to be printed. */
   
   initList(&list);
   addToList(&list, "file", src->name, "string");   /* source file name */
   
-  struct List functions;
+  struct List functions; /* list to store function information. */
+  /* functions: [<function_name>: 
+   *             {"ln": <line_number>, "ec": <execution_count>},
+   *             ...] */
+
   initList(&functions);
   for (fn = src->functions; fn; fn = fn->line_next)
     {
-        struct List functionAttributes;
+        struct List functionAttributes; /* store each function's info. */
         initList(&functionAttributes);
-     /* function:<name>,<line_number>,<execution_count> */
+     /* <function_name>: {"ln": <line_number>, "ec": <execution_count>} */
         addToList(&functionAttributes, "ln", &(fn->line), "unsigned");
         addToList(&functionAttributes, "ec", 
                   format_gcov(fn->blocks[0].count, 0, -1), 
@@ -688,9 +692,11 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
     }
   addToList(&list, "functions", &functions, "list");
 
-  struct List lc;
+  struct List lc; /* list to store execution count of each line. */
+  /* lc: [<line_number>: <execution_count>, ...] */
   initList(&lc);
-  struct List branch;
+  struct List branch; /* list to store branching info. */
+  /* branch: [<line_number>: <branch_type>, ...] */
   initList(&branch);
  for (line_num = 1, line = &src->lines[line_num];
        line_num < src->num_lines;
@@ -699,6 +705,7 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
       arc_t *arc;
       if (line->exists) {
         addToList(&lc, format_gcov(line_num, 0, -1), &line->count, "long");
+        /* <line_number>: <execution_count> */
       }
 
       if (flag_branches) {
@@ -707,17 +714,17 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
             if (!arc->is_unconditional && !arc->is_call_non_return)
               {
                 const char *branch_type;
-                /* branch:<line_num>,<branch_coverage_type>
-                   branch_coverage_type
-                     : notexec (Branch not executed)
-                     : taken (Branch executed and taken)
-                     : nottaken (Branch executed, but not taken)
-                */
                 if (arc->src->count)
                   branch_type = (arc->count > 0) ? "taken" : "nottaken";
                 else
                   branch_type = "notexec";
                 addToList(&branch, format_gcov(line_num, 0, -1), branch_type, "string");
+                /* <line_num>: <branch_coverage_type>
+                   branch_coverage_type
+                     : notexec (Branch not executed)
+                     : taken (Branch executed and taken)
+                     : nottaken (Branch executed, but not taken)
+                */
               }
           }
 
@@ -726,7 +733,7 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
 
     addToList(&list, "branch", &branch, "list");
     addToList(&list, "lc", &lc, "list");
-    printAndDeleteList(&list, gcov_file);
+    printAndDeleteList(&list, gcov_file); /* output list contents to file. */
 }
 
 
