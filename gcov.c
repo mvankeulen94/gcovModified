@@ -630,34 +630,48 @@ get_gcov_intermediate_filename (const char *file_name)
 
 /* Output the result in intermediate format used by 'lcov'.
 
-The intermediate format contains a single file named 'foo.cc.gcov',
+The intermediate format contains a single file named 'foo.cc.json',
 with no source code included. A sample output is
-
-file:foo.cc
-function:5,1,_Z3foov
-function:13,1,main
-function:19,1,_GLOBAL__sub_I__Z3foov
-function:19,1,_Z41__static_initialization_and_destruction_0ii
-lcount:5,1
-lcount:7,9
-lcount:9,8
-lcount:11,1
-file:/.../iostream
-lcount:74,1
-file:/.../basic_ios.h
-file:/.../ostream
-file:/.../ios_base.h
-function:157,0,_ZStorSt12_Ios_IostateS_
-lcount:157,0
-file:/.../char_traits.h
-function:258,0,_ZNSt11char_traitsIcE6lengthEPKc
-lcount:258,0
+{file: gcov-prto.c, 
+ functions: [catch_function: {ln: 8, ec: 1}, 
+             covered_function: {ln: 14, ec: 1}, 
+             main: {ln: 24, ec: 1}
+            ], 
+ branch: [18: taken, 
+          18: taken, 
+          25: nottaken, 
+          25: taken, 
+          29: notexec, 
+          29: notexec
+         ], 
+ lc: [8: 1, 
+      10: 1, 
+      11: 0, 
+      12: 0, 
+      13: 0, 
+      14: 1, 
+      16: 1, 
+      17: 1, 
+      18: 107, 
+      19: 106, 
+      21: 1, 
+      22: 1, 
+      24: 1, 
+      25: 1, 
+      26: 0, 
+      27: 0, 
+      29: 1, 
+      30: 0, 
+      31: 0, 
+      33: 10396784853
+     ]
+}
 ...
 
 The default gcov outputs multiple files: 'foo.cc.gcov',
 'iostream.gcov', 'ios_base.h.gcov', etc. with source code
 included. Instead the intermediate format here outputs only a single
-file 'foo.cc.gcov' similar to the above example. */
+file 'foo.cc.json' similar to the above example. */
 
 static void
 output_intermediate_file (FILE *gcov_file, source_t *src)
