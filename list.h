@@ -5,7 +5,7 @@ struct Node {
 
     char *key;
     void *value;
-    char *type;
+    const char *type;
 };
 
 struct List {
