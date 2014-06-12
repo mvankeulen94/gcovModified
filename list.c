@@ -131,6 +131,13 @@ void addToList (struct List *list, const char *key, const void *value,
 
 }
 
+static int isSubstantialInfo (struct List *list) {
+    if (list->front->next == NULL)
+        return 0;
+    else
+        return 1;
+}
+
 /* Helper function for printing the data in a struct List. Prints
  * data in the Node and then frees data and Node.
  */
@@ -189,25 +196,28 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
     free(node);
 
     if (moreDataExists) {
-        // Don't print a comma if next node data is an empty list
-        // or empty list chain.
-        if (strcmp(next->type, "list") != 0 && 
-            strcmp(next->type, "object") != 0 || 
-            !isEmptyListChain((struct List *) next->value)) {
-            fprintf(file, ", ");
-        }
-
+        fprintf(file, ", ");
         printAndDeleteNode(next, file);
     }
 }
 
 /* Print elements in a list as a JSON object, deleting them
- * as they are printed.
+ * as they are printed. Return 1 if print was successful, 
+ * 0 if print was unsuccessful.
  */
-void printAndDeleteList (struct List *list, FILE *file) {
+int printAndDeleteList (struct List *list, FILE *file) {
+    // Don't print anything if list has no coverage info.
+    if (!isSubstantialInfo(list)) {
+        free(list->front->key);
+        free(list->front->value);
+        free(list->front);
+        return 0;
+    }
+
     fprintf(file, "{");
     printAndDeleteNode(list->front, file);
     fprintf(file, "}");
     fflush(file);
+    return 1;
 }
 

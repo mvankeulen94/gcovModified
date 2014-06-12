@@ -17,5 +17,5 @@ void initList(struct List *);
 int isEmptyList(const struct List *);
 void addToList(struct List *, const char *, const void *, 
                const char *);
-void printAndDeleteList(struct List *, FILE *);
+int printAndDeleteList(struct List *, FILE *);
 #endif
