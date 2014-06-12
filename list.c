@@ -177,9 +177,9 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
  * as they are printed.
  */
 void printAndDeleteList (struct List *list, FILE *file) {
-    fprintf(file, "\n{");
+    fprintf(file, "{");
     printAndDeleteNode(list->front, file);
-    fprintf(file, "}\n");
+    fprintf(file, "}");
     fflush(file);
 }
 
