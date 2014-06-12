@@ -23,8 +23,29 @@ void initList (struct List *list) {
     list->back = NULL;
 }
 
-int isEmptyList (struct List *list) {
+int isEmptyList (const struct List *list) {
     return list->front == NULL;
+}
+
+/* Determine whether list or its sublists,
+ * if present, has an empty list as its 
+ * data value, or is an empty list itself. 
+ * Used to prevent printing trailing commas.
+ */
+static int isEmptyListChain(const struct List *list) {
+    if (!isEmptyList(list)) {
+        if (list->front->value != NULL) {
+           if (strcmp(list->front->type, "list") == 0 || 
+               strcmp(list->front->type, "object") == 0) 
+               return isEmptyListChain((struct List *) list->front->value);
+           else
+               return 0;
+        }
+        else
+            return 1;
+    }
+
+    return 1;
 }
 
 /* Add key/value entry to list. type represents the type of the 
@@ -32,6 +53,11 @@ int isEmptyList (struct List *list) {
  */
 void addToList (struct List *list, const char *key, const void *value,
                 const char *type) {
+    if ((strcmp(type, "list") == 0 ||
+         strcmp(type, "object") == 0) && 
+        isEmptyListChain((const struct List *) value))
+        return;
+
     struct Node *newNode = (struct Node *) malloc(sizeof(struct Node));
     if (newNode == NULL) {
         die("malloc failed");
@@ -163,9 +189,11 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
     free(node);
 
     if (moreDataExists) {
-        // Don't print a comma if next node data is an empty list.
-        if (strcmp(next->type, "list") != 0 || 
-            !isEmptyList((struct List *) next->value)) {
+        // Don't print a comma if next node data is an empty list
+        // or empty list chain.
+        if (strcmp(next->type, "list") != 0 && 
+            strcmp(next->type, "object") != 0 || 
+            !isEmptyListChain((struct List *) next->value)) {
             fprintf(file, ", ");
         }
 
