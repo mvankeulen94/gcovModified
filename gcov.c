@@ -703,7 +703,7 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
         addToList(&functions, "", &functionAttributes, "object");
         
     }
-  addToList(&list, "functions", &functions, "list");
+  addToList(&list, "functions", &functions, "array");
 
   struct List lc; /* list to store execution count of each line. */
   /* lc: [<line_number>: <execution_count>, ...] */
@@ -744,7 +744,7 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
       }
     }
 
-    //addToList(&list, "branch", &branch, "list");
+    //addToList(&list, "branch", &branch, "array");
     addToList(&list, "lc", &lc, "object");
     if (printAndDeleteList(&list, gcov_file))
         return 1;
