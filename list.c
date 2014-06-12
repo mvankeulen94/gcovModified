@@ -23,8 +23,29 @@ void initList (struct List *list) {
     list->back = NULL;
 }
 
-int isEmptyList (struct List *list) {
+int isEmptyList (const struct List *list) {
     return list->front == NULL;
+}
+
+/* Determine whether list or its sublists,
+ * if present, has an empty list as its 
+ * data value, or is an empty list itself. 
+ * Used to prevent printing trailing commas.
+ */
+static int isEmptyListChain(const struct List *list) {
+    if (!isEmptyList(list)) {
+        if (list->front->value != NULL) {
+           if (strcmp(list->front->type, "list") == 0 || 
+               strcmp(list->front->type, "object") == 0) 
+               return isEmptyListChain((struct List *) list->front->value);
+           else
+               return 0;
+        }
+        else
+            return 1;
+    }
+
+    return 1;
 }
 
 /* Add key/value entry to list. type represents the type of the 
@@ -32,6 +53,11 @@ int isEmptyList (struct List *list) {
  */
 void addToList (struct List *list, const char *key, const void *value,
                 const char *type) {
+    if ((strcmp(type, "list") == 0 ||
+         strcmp(type, "object") == 0) && 
+        isEmptyListChain((const struct List *) value))
+        return;
+
     struct Node *newNode = (struct Node *) malloc(sizeof(struct Node));
     if (newNode == NULL) {
         die("malloc failed");
@@ -105,6 +131,13 @@ void addToList (struct List *list, const char *key, const void *value,
 
 }
 
+static int isSubstantialInfo (struct List *list) {
+    if (list->front->next == NULL)
+        return 0;
+    else
+        return 1;
+}
+
 /* Helper function for printing the data in a struct List. Prints
  * data in the Node and then frees data and Node.
  */
@@ -163,23 +196,28 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
     free(node);
 
     if (moreDataExists) {
-        // Don't print a comma if next node data is an empty list.
-        if (strcmp(next->type, "list") != 0 || 
-            !isEmptyList((struct List *) next->value)) {
-            fprintf(file, ", ");
-        }
-
+        fprintf(file, ", ");
         printAndDeleteNode(next, file);
     }
 }
 
 /* Print elements in a list as a JSON object, deleting them
- * as they are printed.
+ * as they are printed. Return 1 if print was successful, 
+ * 0 if print was unsuccessful.
  */
-void printAndDeleteList (struct List *list, FILE *file) {
-    fprintf(file, "\n{");
+int printAndDeleteList (struct List *list, FILE *file) {
+    // Don't print anything if list has no coverage info.
+    if (!isSubstantialInfo(list)) {
+        free(list->front->key);
+        free(list->front->value);
+        free(list->front);
+        return 0;
+    }
+
+    fprintf(file, "{");
     printAndDeleteNode(list->front, file);
-    fprintf(file, "}\n");
+    fprintf(file, "}");
     fflush(file);
+    return 1;
 }
 

@@ -673,7 +673,7 @@ The default gcov outputs multiple files: 'foo.cc.gcov',
 included. Instead the intermediate format here outputs only a single
 file 'foo.cc.json' similar to the above example. */
 
-static void
+static int 
 output_intermediate_file (FILE *gcov_file, source_t *src)
 {
   unsigned line_num;    /* current line number.  */
@@ -746,7 +746,10 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
 
     //addToList(&list, "branch", &branch, "list");
     addToList(&list, "lc", &lc, "object");
-    printAndDeleteList(&list, gcov_file); /* output list contents to file. */
+    if (printAndDeleteList(&list, gcov_file))
+        return 1;
+    else
+        return 0;
 }
 
 
@@ -901,6 +904,7 @@ generate_results (const char *file_name)
                    gcov_intermediate_filename);
           return;
         }
+      fprintf(gcov_intermediate_file, "[");
     }
 
   for (ix = n_sources, src = sources; ix--; src++)
@@ -925,10 +929,15 @@ generate_results (const char *file_name)
       total_executed += src->coverage.lines_executed;
       if (flag_gcov_file)
 	{
-          if (flag_intermediate_format)
+          if (flag_intermediate_format) {
             /* Output the intermediate format without requiring source
                files.  This outputs a section to a *single* file.  */
-            output_intermediate_file (gcov_intermediate_file, src);
+            int success = output_intermediate_file (gcov_intermediate_file, src);
+            if (ix && success) 
+                fprintf(gcov_intermediate_file, ",\n\n");
+            else if (success)
+                fprintf(gcov_intermediate_file, "\n");
+          }
           else
             output_gcov_file (file_name, src);
           fnotice (stdout, "\n");
@@ -938,6 +947,8 @@ generate_results (const char *file_name)
   if (flag_gcov_file && flag_intermediate_format)
     {
       /* Now we've finished writing the intermediate file.  */
+      fprintf(gcov_intermediate_file, "]\n");
+      fflush(gcov_intermediate_file);
       fclose (gcov_intermediate_file);
       XDELETEVEC (gcov_intermediate_filename);
     }
