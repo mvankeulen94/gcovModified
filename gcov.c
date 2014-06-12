@@ -904,7 +904,6 @@ generate_results (const char *file_name)
                    gcov_intermediate_filename);
           return;
         }
-      fprintf(gcov_intermediate_file, "[");
     }
 
   for (ix = n_sources, src = sources; ix--; src++)
@@ -934,9 +933,10 @@ generate_results (const char *file_name)
                files.  This outputs a section to a *single* file.  */
             int success = output_intermediate_file (gcov_intermediate_file, src);
             if (ix && success) 
-                fprintf(gcov_intermediate_file, ",\n\n");
+                fprintf(gcov_intermediate_file, "\n\n");
             else if (success)
                 fprintf(gcov_intermediate_file, "\n");
+            fflush(gcov_intermediate_file);
           }
           else
             output_gcov_file (file_name, src);
@@ -947,8 +947,6 @@ generate_results (const char *file_name)
   if (flag_gcov_file && flag_intermediate_format)
     {
       /* Now we've finished writing the intermediate file.  */
-      fprintf(gcov_intermediate_file, "]\n");
-      fflush(gcov_intermediate_file);
       fclose (gcov_intermediate_file);
       XDELETEVEC (gcov_intermediate_filename);
     }
