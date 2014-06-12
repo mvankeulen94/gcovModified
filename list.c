@@ -51,11 +51,13 @@ void addToList (struct List *list, const char *key, const void *value,
     newNode->next = NULL;
     
     // Make copies of the key and value arguments
-    newNode->key = (char *) malloc(strlen(key) + 1);
+    newNode->key = (char *) malloc(strlen(key) + 3);
     if (newNode->key == NULL) {
         die("malloc failed");
     }
-    strcpy(newNode->key, key);
+    strcpy(newNode->key, "\"");
+    strcpy(newNode->key + 1, key);
+    strcpy(newNode->key + strlen(key) + 1, "\"");
 
     if (strcmp(newNode->type, "long") == 0) {
         newNode->value = malloc(sizeof(long));
@@ -63,8 +65,11 @@ void addToList (struct List *list, const char *key, const void *value,
     }
 
     if (strcmp(newNode->type, "string") == 0) {
-        newNode->value = malloc(strlen((const char *) value) + 1);
-        strcpy((char *) newNode->value, (const char *) value);
+        newNode->value = malloc(strlen((const char *) value) + 3);
+        strcpy((char *) newNode->value, "\"");
+        strcpy((char *) newNode->value + 1, (const char *) value);
+        size_t len = strlen((const char *) value);
+        strcpy((char *) newNode->value + len + 1, "\"");
     }
 
     /* Note that adding a node with data type "list" will
@@ -116,8 +121,10 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
     // Only print list if list is not empty.
     if (strcmp(node->type, "list") == 0 && 
         !isEmptyList((struct List *) node->value)) {
-
-        fprintf(file, "%s: [", node->key);
+        if (strcmp(node->key, "\"\"") != 0) 
+            fprintf(file, "%s: [", node->key);
+        else
+            fprintf(file, "[");
         struct List *subList = (struct List *) node->value;
         printAndDeleteNode(subList->front, file);
         fprintf(file, "]");
@@ -125,8 +132,10 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
  
     if (strcmp(node->type, "object") == 0 && 
         !isEmptyList((struct List *) node->value)) {
-
-        fprintf(file, "%s: {", node->key);
+        if (strcmp(node->key, "\"\"") != 0) 
+            fprintf(file, "%s: {", node->key);
+        else
+            fprintf(file, "{");
         struct List *subList = (struct List *) node->value;
         printAndDeleteNode(subList->front, file);
         fprintf(file, "}");
