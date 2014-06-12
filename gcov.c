@@ -695,14 +695,13 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
         struct List functionAttributes; /* store each function's info. */
         initList(&functionAttributes);
      /* <function_name>: {"ln": <line_number>, "ec": <execution_count>} */
-        addToList(&functionAttributes, "ln", &(fn->line), "unsigned");
-        addToList(&functionAttributes, "ec", 
-                  format_gcov(fn->blocks[0].count, 0, -1), 
-                  "string"); 
-        addToList(&functions, 
+        addToList(&functionAttributes, "nm", 
                   (flag_demangled_names ? fn->demangled_name : fn->name),
-                  &functionAttributes,
-                  "object");
+                  "string");
+        addToList(&functionAttributes, "ln", &(fn->line), "unsigned");
+        addToList(&functionAttributes, "ec", &fn->blocks[0].count, "long");
+        addToList(&functions, "", &functionAttributes, "object");
+        
     }
   addToList(&list, "functions", &functions, "list");
 
@@ -732,7 +731,7 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
                   branch_type = (arc->count > 0) ? "taken" : "nottaken";
                 else
                   branch_type = "notexec";
-                addToList(&branch, format_gcov(line_num, 0, -1), branch_type, "string");
+                //addToList(&branch, format_gcov(line_num, 0, -1), branch_type, "string");
                 /* <line_num>: <branch_coverage_type>
                    branch_coverage_type
                      : notexec (Branch not executed)
@@ -745,8 +744,8 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
       }
     }
 
-    addToList(&list, "branch", &branch, "list");
-    addToList(&list, "lc", &lc, "list");
+    //addToList(&list, "branch", &branch, "list");
+    addToList(&list, "lc", &lc, "object");
     printAndDeleteList(&list, gcov_file); /* output list contents to file. */
 }
 
