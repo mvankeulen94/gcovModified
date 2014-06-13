@@ -706,7 +706,7 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
   addToList(&list, "functions", &functions, "array");
 
   struct List lc; /* list to store execution count of each line. */
-  /* lc: [<line_number>: <execution_count>, ...] */
+  /* lc: [{"ln": <line_number>, "ec": <execution_count>}, ...] */
   initList(&lc);
   struct List branch; /* list to store branching info. */
   /* branch: [<line_number>: <branch_type>, ...] */
@@ -717,7 +717,11 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
     {
       arc_t *arc;
       if (line->exists) {
-        addToList(&lc, format_gcov(line_num, 0, -1), &line->count, "long");
+        struct List lineInfo;
+        initList(&lineInfo);
+        addToList(&lineInfo, "ln", &line_num, "unsigned");
+        addToList(&lineInfo, "ec", &line->count, "long");
+        addToList(&lc, "", &lineInfo, "object");
         /* <line_number>: <execution_count> */
       }
 
@@ -745,7 +749,7 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
     }
 
     //addToList(&list, "branch", &branch, "array");
-    addToList(&list, "lc", &lc, "object");
+    addToList(&list, "lc", &lc, "array");
     if (printAndDeleteList(&list, gcov_file))
         return 1;
     else
