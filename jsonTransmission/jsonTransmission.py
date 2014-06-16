@@ -1,4 +1,7 @@
 import sys
+import pymongo 
+from pymongo import MongoClient
+import json
 
 def main():
     """Read a JSON file and output the file with added values.
@@ -8,17 +11,25 @@ def main():
     """
 
     if len(sys.argv) < 3:
-        print "Too few arguments."
+        print "Usage: python jsonTransmission.py <gitHash> <version>"
         sys.exit(1)
   
     filename = raw_input("Please enter file name: ")
     f = open(filename, "r")
+    databaseName = raw_input("Please enter database name: ")
+    collectionName = raw_input("Please enter collection name: ")
 
     for line in f:
-        gitHash = "\"gitHash\": " + sys.argv[1] + ", "
-        version = "\"version\": " + sys.argv[2] + ", "
-        line = "{" + gitHash + version + line[line.index('{')+1:]
-        print line
+        firstBrace = line.find('{')
+        if firstBrace != -1:
+            client = MongoClient()
+            db = client[databaseName]
+            collection = db[collectionName]
+            
+            record = json.loads(line)
+            record["gitHash"] = sys.argv[1]
+            record["version"] = sys.argv[2]
+            collection.insert(record)
 
     f.close() 
 
