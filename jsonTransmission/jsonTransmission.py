@@ -5,7 +5,11 @@ from pymongo import MongoClient
 import json
 from pprint import pprint
 
-def main():
+import tornado.ioloop
+import tornado.web
+from tornado.escape import json_decode
+
+def doJSONImport():
     """Read a JSON file and output the file with added values.
 
     gitHash and version, which are passed as command line arguments,
@@ -74,4 +78,22 @@ def main():
     except BulkWriteError as bwe:
         pprint(bwe.details)
 
-main()
+#main()
+
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.write("Hello, world")
+    def post(self):
+        self.write(self.request.headers.get("Content-Type"))
+        if self.request.headers.get("Content-Type") == "application/json":
+            self.json_args = json_decode(self.request.body)
+            self.write(self.json_args.get("functions"))
+        else:
+            self.write("Error!")
+
+if __name__ == "__main__":
+    application = tornado.web.Application([
+        (r"/", MainHandler),
+    ])
+    application.listen(8888)
+    tornado.ioloop.IOLoop.instance().start()
