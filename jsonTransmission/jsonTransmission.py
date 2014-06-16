@@ -1,5 +1,6 @@
 import sys
-import pymongo 
+import optparse
+import pymongo
 from pymongo import MongoClient
 import json
 
@@ -9,28 +10,60 @@ def main():
     gitHash and version, which are passed as command line arguments,
     are added to the JSON that is output.
     """
+    parser = optparse.OptionParser(usage="""\
+                                   %prog [database] [collection] [filename]
+                                   export MongoDB log file into MongoDB """)
 
-    if len(sys.argv) < 3:
-        print "Usage: python jsonTransmission.py <gitHash> <version>"
-        sys.exit(1)
-  
-    filename = raw_input("Please enter file name: ")
-    f = open(filename, "r")
-    databaseName = raw_input("Please enter database name: ")
-    collectionName = raw_input("Please enter collection name: ")
+    # add in command line options. Add mongo host/port combo later
+    parser.add_option("-f", "--filename", dest="fname",
+                      help="name of file to import",
+                      default=None)
+    parser.add_option("-d", "--database", dest="database",
+                      help="name of database",
+                      default=None)
+    parser.add_option("-c", "--collection", dest="collection",
+                      help="collection name",
+                      default=None)
+    parser.add_option("-g", "--githash", dest="ghash",
+                      help="git hash of code being tested",
+                      default=None)
+    parser.add_option("-b", "--buildhash", dest="bhash", 
+                      help="build hash of code being tested",
+                      default=None)
 
-    for line in f:
-        firstBrace = line.find('{')
-        if firstBrace != -1:
-            client = MongoClient()
-            db = client[databaseName]
-            collection = db[collectionName]
+    (options, args) = parser.parse_args()
+    
+    if options.database is None:
+        print "\nERROR: Must specify database \n"
+        sys.exit(-1)
+        
+    if options.collection is None:
+        print "\nERROR: Must specify collection name\n"
+        sys.exit(-1)
+
+    if options.fname is None:
+        print "\nERROR: Must specify name of file to import\n"
+        sys.exit(-1)
+   
+    if options.ghash is None:
+        print "\nERROR: Must specify git hash \n"
+        sys.exit(-1)
+    
+    if options.bhash is None:
+        print "\nERROR: Must specify build hash \n"
+        sys.exit(-1)
+    
+    connection = MongoClient()
+    db = connection[options.database]
+    logs = db[options.collection]
+
+    for line in open(options.fname, "r"):
+        if line == "\n":
+            continue
             
-            record = json.loads(line)
-            record["gitHash"] = sys.argv[1]
-            record["version"] = sys.argv[2]
-            collection.insert(record)
-
-    f.close() 
+        record = json.loads(line)
+        record["gitHash"] = options.ghash 
+        record["buildHash"] = options.bhash 
+        logs.insert(record)
 
 main()
