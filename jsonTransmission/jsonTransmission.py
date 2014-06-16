@@ -3,6 +3,7 @@ import optparse
 import pymongo
 from pymongo import MongoClient
 import json
+from pprint import pprint
 
 def main():
     """Read a JSON file and output the file with added values.
@@ -12,7 +13,7 @@ def main():
     """
     parser = optparse.OptionParser(usage="""\
                                    %prog [database] [collection] [filename]
-                                   export MongoDB log file into MongoDB """)
+                                   [gitHash] [buildHash]""")
 
     # add in command line options. Add mongo host/port combo later
     parser.add_option("-f", "--filename", dest="fname",
@@ -56,6 +57,7 @@ def main():
     connection = MongoClient()
     db = connection[options.database]
     logs = db[options.collection]
+    bulk = logs.initialize_unordered_bulk_op()
 
     for line in open(options.fname, "r"):
         if line == "\n":
@@ -64,6 +66,12 @@ def main():
         record = json.loads(line)
         record["gitHash"] = options.ghash 
         record["buildHash"] = options.bhash 
-        logs.insert(record)
+        bulk.insert(record)
+    
+    try:
+        result = bulk.execute()
+        pprint(result)
+    except BulkWriteError as bwe:
+        pprint(bwe.details)
 
 main()
