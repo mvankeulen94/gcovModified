@@ -79,36 +79,32 @@ def doJSONImport():
     except BulkWriteError as bwe:
         pprint(bwe.details)
 
-#main()
+class Application(tornado.web.Application):
+    def __init__(self):
+        configFile = open("config.conf", "r")
+        conf = json.loads(configFile.readline())
+        configFile.close()
+        self.client = motor.MotorClient(conf["hostname"], conf["port"])
+        self.db = self.client[conf["database"]]
+        self.collection = self.db[conf["collection"]]
+        super(Application, self).__init__([
+        (r"/", MainHandler),
+        ],)
 
 class MainHandler(tornado.web.RequestHandler):
-#    conf = json.loads(open("config.conf", "r").readline())
-#    print conf
     def get(self):
         self.write("Hello, world")
     def post(self):
         self.write(self.request.headers.get("Content-Type"))
         if self.request.headers.get("Content-Type") == "application/json":
             self.json_args = json_decode(self.request.body)
-            collection.insert(self.json_args)
-            funcList = self.json_args.get("functions")
-            for func in funcList:
-                self.write("Name: "+ func["nm"]+ "\n")
-                # type issues with the following. Fixie
-                #self.write("Line:"+ func["ln"]+ "<br>")
-                #self.write("Exec Count:"+ func["ec"]+ "<br>")
+            self.application.collection.insert(self.json_args)
+            self.write("\nRecord for " + self.json_args.get("file") + 
+                       " inserted!\n")
         else:
             self.write("Error!")
 
 if __name__ == "__main__":
-    configFile = open("config.conf", "r")
-    conf = json.loads(configFile.readline())
-    configFile.close()
-    client = motor.MotorClient(conf["hostname"], conf["port"])
-    db = client[conf["database"]]
-    collection = db[conf["collection"]]
-    application = tornado.web.Application([
-        (r"/", MainHandler),
-    ], db=db)
+    application = Application()
     application.listen(8888)
     tornado.ioloop.IOLoop.instance().start()
