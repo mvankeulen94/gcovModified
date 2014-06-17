@@ -8,6 +8,7 @@ from pprint import pprint
 import tornado.ioloop
 import tornado.web
 from tornado.escape import json_decode
+import motor
 
 def doJSONImport():
     """Read a JSON file and output the file with added values.
@@ -81,19 +82,33 @@ def doJSONImport():
 #main()
 
 class MainHandler(tornado.web.RequestHandler):
+#    conf = json.loads(open("config.conf", "r").readline())
+#    print conf
     def get(self):
         self.write("Hello, world")
     def post(self):
         self.write(self.request.headers.get("Content-Type"))
         if self.request.headers.get("Content-Type") == "application/json":
             self.json_args = json_decode(self.request.body)
-            self.write(self.json_args.get("functions"))
+            collection.insert(self.json_args)
+            funcList = self.json_args.get("functions")
+            for func in funcList:
+                self.write("Name: "+ func["nm"]+ "\n")
+                # type issues with the following. Fixie
+                #self.write("Line:"+ func["ln"]+ "<br>")
+                #self.write("Exec Count:"+ func["ec"]+ "<br>")
         else:
             self.write("Error!")
 
 if __name__ == "__main__":
+    configFile = open("config.conf", "r")
+    conf = json.loads(configFile.readline())
+    configFile.close()
+    client = motor.MotorClient(conf["hostname"], conf["port"])
+    db = client[conf["database"]]
+    collection = db[conf["collection"]]
     application = tornado.web.Application([
         (r"/", MainHandler),
-    ])
+    ], db=db)
     application.listen(8888)
     tornado.ioloop.IOLoop.instance().start()
