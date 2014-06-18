@@ -46,12 +46,24 @@ class AggHandler(tornado.web.RequestHandler):
             self.json_args = json_decode(self.request.body)
             gitHash = self.json_args.get("gitHash")
             buildHash = self.json_args.get("buildHash")
-            pipeline = [{"$match":{"gitHash": gitHash}}]
-            #,{"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, {"$group":{"_id":"$file", "count":{"$sum":1}, "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
+
+            # Get git hashes and build hashes
+            pipeline = [{"$project":{"gitHash":1, "buildHash":1}}, {"$group":{"_id":{"gitHash":"$gitHash", "build":"$buildHash"}}}]
+            cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
+            self.write("\nReport:\n")
+            while (yield cursor.fetch_next):
+                obj = bsondumps(cursor.next_object())
+                self.write("\n" + obj + "\n")
+
+            # Generate line count results
+#            pipeline = [{"$match":{"file": r"/^src\/mongo/", "gitHash": gitHash, "buildHash": buildHash}}, {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, {"$group":{"_id":"$file", "count":{"$sum":1}, "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
+
+            pipeline = [{"$match":{"gitHash": gitHash, "buildHash": buildHash}}, {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, {"$group":{"_id":"$file", "count":{"$sum":1}, "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
             cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
             while (yield cursor.fetch_next):
                 obj = bsondumps(cursor.next_object())
                 self.write("\n" + obj + "\n")
+
         else:
             self.write("\nError!\n")
 
