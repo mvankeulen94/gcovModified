@@ -3,12 +3,63 @@ import optparse
 import pymongo
 from pymongo import MongoClient
 import json
+from bson.json_util import dumps as bsondumps
 from pprint import pprint
 
 import tornado.ioloop
 import tornado.web
 from tornado.escape import json_decode
 import motor
+from tornado import gen
+
+
+class Application(tornado.web.Application):
+    def __init__(self):
+        configFile = open("config.conf", "r")
+        conf = json.loads(configFile.readline())
+        configFile.close()
+        self.client = motor.MotorClient(conf["hostname"], conf["port"])
+        self.db = self.client[conf["database"]]
+        self.collection = self.db[conf["collection"]]
+        super(Application, self).__init__([
+        (r"/", MainHandler),
+        (r"/aggregate", AggHandler),
+        ],)
+
+class MainHandler(tornado.web.RequestHandler):
+    @tornado.web.asynchronous
+    @gen.coroutine
+    def post(self):
+        self.write(self.request.headers.get("Content-Type"))
+        if self.request.headers.get("Content-Type") == "application/json":
+            self.json_args = json_decode(self.request.body)
+            result = yield self.application.collection.insert(self.json_args)
+            self.write("\nRecord for " + self.json_args.get("file") + 
+                       " inserted!\n")
+        else:
+            self.write("\nError!\n")
+class AggHandler(tornado.web.RequestHandler):
+    @tornado.web.asynchronous
+    @gen.coroutine
+    def post(self):
+        if self.request.headers.get("Content-Type") == "application/json":
+            self.json_args = json_decode(self.request.body)
+            gitHash = self.json_args.get("gitHash")
+            buildHash = self.json_args.get("buildHash")
+            pipeline = [{"$match":{"gitHash": gitHash}}]
+            #,{"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, {"$group":{"_id":"$file", "count":{"$sum":1}, "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
+            cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
+            while (yield cursor.fetch_next):
+                obj = bsondumps(cursor.next_object())
+                self.write("\n" + obj + "\n")
+        else:
+            self.write("\nError!\n")
+
+if __name__ == "__main__":
+    application = Application()
+    application.listen(8888)
+    tornado.ioloop.IOLoop.instance().start()
+
 
 def doJSONImport():
     """Read a JSON file and output the file with added values.
@@ -78,33 +129,3 @@ def doJSONImport():
         pprint(result)
     except BulkWriteError as bwe:
         pprint(bwe.details)
-
-class Application(tornado.web.Application):
-    def __init__(self):
-        configFile = open("config.conf", "r")
-        conf = json.loads(configFile.readline())
-        configFile.close()
-        self.client = motor.MotorClient(conf["hostname"], conf["port"])
-        self.db = self.client[conf["database"]]
-        self.collection = self.db[conf["collection"]]
-        super(Application, self).__init__([
-        (r"/", MainHandler),
-        ],)
-
-class MainHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.write("Hello, world")
-    def post(self):
-        self.write(self.request.headers.get("Content-Type"))
-        if self.request.headers.get("Content-Type") == "application/json":
-            self.json_args = json_decode(self.request.body)
-            self.application.collection.insert(self.json_args)
-            self.write("\nRecord for " + self.json_args.get("file") + 
-                       " inserted!\n")
-        else:
-            self.write("Error!")
-
-if __name__ == "__main__":
-    application = Application()
-    application.listen(8888)
-    tornado.ioloop.IOLoop.instance().start()
