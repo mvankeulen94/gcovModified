@@ -99,11 +99,14 @@ class ReportHandler(tornado.web.RequestHandler):
         # Generate function results
         pipeline = [{"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"},{"$group": { "_id":"$functions.nm", "count" : { "$sum" : "$functions.ec"}, "noexec":{"$sum":{"$cond":[{"$eq":["$functions.ec",0]},1,0]}}}},{"$sort":{"count":-1}}, {"$limit":10}] 
         cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
+        noexec = 0
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
             count = bsonobj["count"]
             noexec = bsonobj["noexec"]
             percentage = float(noexec)/count * 100
+            if count == 0:
+                noexec += 1
             self.write("\nFunction: " + bsonobj["_id"] + "\n")
             self.write("lines: " + str(count) + " hit: " + str(count-noexec) + 
                        " % executed: " + str(percentage) + "\n")
