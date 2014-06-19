@@ -73,8 +73,13 @@ class ReportHandler(tornado.web.RequestHandler):
 
             cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
             while (yield cursor.fetch_next):
-                obj = bsondumps(cursor.next_object())
-                self.write("\n" + obj + "\n")
+                bsonobj = cursor.next_object()
+                obj = bsondumps(bsonobj)
+                count = bsonobj["count"]
+                noexec = bsonobj["noexec"]
+                percentage = float(noexec)/count
+                self.write("\nFile: " + bsonobj["_id"])
+                self.write(", % executed: " + str(percentage) + "\n")
 
         else:
             self.write("\nError!\n")
