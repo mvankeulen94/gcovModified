@@ -78,7 +78,7 @@ def doJSONImport():
     
     http_client.close()
 
-def doJSONAggregate():
+def doJSONAggregate(method):
     parser = optparse.OptionParser(usage="""\
                                    %prog [database] [collection] [filename]
                                    [gitHash] [buildHash]""")
@@ -120,12 +120,19 @@ def doJSONAggregate():
     record = {"gitHash": options.ghash, "buildHash": options.bhash}
 
        
-            
-    request = tornado.httpclient.HTTPRequest(
+    if method == "post":
+        request = tornado.httpclient.HTTPRequest(
                              url="http://127.0.0.1:8888/report",
                              method="POST", 
                              headers={"Content-Type": "application/json"},
                              body=json.dumps(record))
+    else:
+        request = tornado.httpclient.HTTPRequest(
+                             url="http://127.0.0.1:8888/report?" + 
+                                 "gitHash=NEWGITHASH234980234809&" + 
+                                 "build=NEWBUILDHASH392804",
+                             method="GET")
+
     try:
         response = http_client.fetch(request)
         print response.body
@@ -134,5 +141,17 @@ def doJSONAggregate():
     
     http_client.close()
 
-#doJSONImport()
-doJSONAggregate()
+
+def main():
+    response = raw_input("Do you want to:\n 1. import 2. aggregate \n ")
+    if response == "1":
+        doJSONImport()
+    else:
+        response = raw_input("Do you want to:\n 1. post 2. get \n ")
+
+        if response == "1":
+            doJSONAggregate("post")
+        else:
+            doJSONAggregate("get")
+
+main()
