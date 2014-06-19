@@ -4,6 +4,7 @@ import pymongo
 from pymongo import MongoClient
 import json
 from bson.json_util import dumps as bsondumps
+import re
 from pprint import pprint
 
 import tornado.ioloop
@@ -23,7 +24,7 @@ class Application(tornado.web.Application):
         self.collection = self.db[conf["collection"]]
         super(Application, self).__init__([
         (r"/", MainHandler),
-        (r"/aggregate", AggHandler),
+        (r"/report", ReportHandler),
         ],)
 
 class MainHandler(tornado.web.RequestHandler):
@@ -38,7 +39,9 @@ class MainHandler(tornado.web.RequestHandler):
                        " inserted!\n")
         else:
             self.write("\nError!\n")
-class AggHandler(tornado.web.RequestHandler):
+
+
+class ReportHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
     def post(self):
@@ -48,7 +51,8 @@ class AggHandler(tornado.web.RequestHandler):
             buildHash = self.json_args.get("buildHash")
 
             # Get git hashes and build hashes
-            pipeline = [{"$project":{"gitHash":1, "buildHash":1}}, {"$group":{"_id":{"gitHash":"$gitHash", "build":"$buildHash"}}}]
+            pipeline = [{"$project":{"gitHash":1, "buildHash":1}}, 
+                        {"$group":{"_id":{"gitHash":"$gitHash", "build":"$buildHash"}}}]
             cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
             self.write("\nReport:\n")
             while (yield cursor.fetch_next):
@@ -56,9 +60,12 @@ class AggHandler(tornado.web.RequestHandler):
                 self.write("\n" + obj + "\n")
 
             # Generate line count results
-#            pipeline = [{"$match":{"file": r"/^src\/mongo/", "gitHash": gitHash, "buildHash": buildHash}}, {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, {"$group":{"_id":"$file", "count":{"$sum":1}, "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
+            pipeline = [{"$match":{"file": re.compile("^src\/mongo"), 
+                         "gitHash": gitHash, "buildHash": buildHash}}, 
+                        {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, 
+                        {"$group":{"_id":"$file", "count":{"$sum":1}, 
+                         "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
 
-            pipeline = [{"$match":{"gitHash": gitHash, "buildHash": buildHash}}, {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, {"$group":{"_id":"$file", "count":{"$sum":1}, "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
             cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
             while (yield cursor.fetch_next):
                 obj = bsondumps(cursor.next_object())

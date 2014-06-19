@@ -122,7 +122,7 @@ def doJSONAggregate():
        
             
     request = tornado.httpclient.HTTPRequest(
-                             url="http://127.0.0.1:8888/aggregate",
+                             url="http://127.0.0.1:8888/report",
                              method="POST", 
                              headers={"Content-Type": "application/json"},
                              body=json.dumps(record))
