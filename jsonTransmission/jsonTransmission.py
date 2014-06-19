@@ -46,8 +46,6 @@ class ReportHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def post(self):
         if self.request.headers.get("Content-Type") == "application/json":
-            self.json_args = json_decode(self.request.body)
-
             # Get git hashes and build hashes
             pipeline = [{"$project":{"gitHash":1, "buildHash":1}}, 
                         {"$group":{"_id":{"gitHash":"$gitHash", "build":"$buildHash"}}}]
@@ -59,25 +57,43 @@ class ReportHandler(tornado.web.RequestHandler):
                 obj = bsondumps(bsonobj)
                 build = bsonobj["_id"]["build"]
                 gitHash = bsonobj["_id"]["gitHash"]
-                self.write("<a href=\"#\"> " + build + ", " + gitHash + " </a><br />")
+                url = self.request.full_url()
+                url += "?gitHash=" + gitHash + "&build=" + build
+                self.write("<a href=\"" + url + "\"> " + build + ", " 
+                           + gitHash + " </a><br />")
             self.write("</body></html>")
-
-            # Generate line count results
-            gitHash = self.json_args.get("gitHash")
-            buildHash = self.json_args.get("buildHash")
-            pipeline = [{"$match":{"file": re.compile("^src\/mongo"), 
-                         "gitHash": gitHash, "buildHash": buildHash}}, 
-                        {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, 
-                        {"$group":{"_id":"$file", "count":{"$sum":1}, 
-                         "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
-
-            cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
-            while (yield cursor.fetch_next):
-                obj = bsondumps(cursor.next_object())
-                self.write("\n" + obj + "\n")
 
         else:
             self.write("\nError!\n")
+    
+    @tornado.web.asynchronous
+    @gen.coroutine
+    def get(self):
+        args = self.request.arguments
+        
+        if (args.get("gitHash") == None or args.get("build") == None):
+            self.write("Error!\n")
+            return
+
+        # Generate line count results
+        gitHash = args.get("gitHash")[0]
+        buildHash = args.get("build")[0]
+        self.write(gitHash + ", " + buildHash)
+        pipeline = [{"$match":{"file": re.compile("^src\/mongo"), 
+                     "gitHash": gitHash, "buildHash": buildHash}}, 
+                    {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, 
+                    {"$group":{"_id":"$file", "count":{"$sum":1}, 
+                     "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
+
+        cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
+        while (yield cursor.fetch_next):
+            bsonobj = cursor.next_object()
+            obj = bsondumps(bsonobj)
+            count = bsonobj["count"]
+            noexec = bsonobj["noexec"]
+            percentage = float(noexec)/count
+            self.write("\nFile: " + bsonobj["_id"])
+            self.write(", % executed: " + str(percentage) + "\n")
 
 if __name__ == "__main__":
     application = Application()
