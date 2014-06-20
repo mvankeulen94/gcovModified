@@ -86,16 +86,20 @@ class ReportHandler(tornado.web.RequestHandler):
                      "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
 
         cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
+        total = 0
+        noexecTotal = 0
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
             obj = bsondumps(bsonobj)
             count = bsonobj["count"]
             noexec = bsonobj["noexec"]
-            percentage = float(count-noexec)/count * 100
-            self.write("\nFile: " + bsonobj["_id"] + "\n")
-            self.write("lines: " + str(count) + " hit: " + str(count-noexec) + 
-                       " % executed: " + str(percentage) + "\n")
+            total += count
+            noexecTotal += noexec
 
+        percentage = float(total-noexecTotal)/total * 100
+        self.write("\nlines: " + str(total) + ", hit: " + 
+                   str(total-noexecTotal) + ", % executed: " + 
+                   str(percentage) + "\n")
         # Generate function results
         pipeline = [{"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"},{"$group": { "_id":"$functions.nm", "count" : { "$sum" : "$functions.ec"}}},{"$sort":{"count":-1}}] 
         cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
@@ -109,8 +113,9 @@ class ReportHandler(tornado.web.RequestHandler):
                 noexec += 1
 
         percentage = float(total-noexec)/total * 100
-        self.write("\nFunctions: " + str(total) + " hit: " + str(total-noexec) + 
-                   " % executed: " + str(percentage) + "\n")
+        self.write("\nfunctions: " + str(total) + 
+                   ", hit: " + str(total-noexec) + 
+                   ", % executed: " + str(percentage) + "\n")
         
 if __name__ == "__main__":
     application = Application()
