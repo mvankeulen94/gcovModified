@@ -95,8 +95,12 @@ class ReportHandler(tornado.web.RequestHandler):
             self.write("\nlines: " + str(total) + ", hit: " + 
                        str(total-noexecTotal) + ", % executed: " + 
                        str(percentage) + "\n")
+
             # Generate function results
-            pipeline = [{"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"},{"$group": { "_id":"$functions.nm", "count" : { "$sum" : "$functions.ec"}}},{"$sort":{"count":-1}}] 
+            pipeline = [{"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"},
+                        {"$group": { "_id":"$functions.nm", 
+                                     "count" : { "$sum" : "$functions.ec"}}},
+                        {"$sort":{"count":-1}}] 
             cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
             noexec = 0
             total = 0

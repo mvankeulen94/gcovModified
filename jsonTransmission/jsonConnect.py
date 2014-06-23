@@ -13,6 +13,13 @@ from tornado.escape import json_decode
 import motor
 import base64
 
+from pygments import highlight
+from pygments.lexers import PythonLexer
+from pygments.lexers import CLexer
+from pygments.lexers import guess_lexer
+from pygments.formatters import HtmlFormatter
+
+
 def doJSONImport():
     """Read a JSON file and output the file with added values.
 
@@ -127,7 +134,9 @@ def getFileContents():
         response = http_client.fetch(request)
         responseDict = json.loads(response.body)
         content = base64.b64decode(responseDict["content"])
-        print content 
+        outfile = open("gitcontent.html", "w")
+        outfile.write(highlight(content, guess_lexer(content), HtmlFormatter()))
+        outfile.close()
 
     except tornado.httpclient.HTTPError as e:
         print "Error: ", e
