@@ -11,6 +11,7 @@ import tornado.ioloop
 import tornado.web
 from tornado.escape import json_decode
 import motor
+import base64
 
 def doJSONImport():
     """Read a JSON file and output the file with added values.
@@ -90,7 +91,7 @@ def doJSONImport():
 
 def doJSONAggregate(body):
     http_client = tornado.httpclient.HTTPClient()
-    if body == "full":
+    if body == "empty":
         request = tornado.httpclient.HTTPRequest(
                              url="http://127.0.0.1:8080/report",
                              method="GET")
@@ -109,17 +110,44 @@ def doJSONAggregate(body):
     
     http_client.close()
 
+def getFileContents():
+    configfile = raw_input("Please enter config file name: ")
+    config = open(configfile, "r")
+    configinfo = json.loads(config.readline())
+    owner = configinfo["owner"]
+    repo = configinfo["repo"]
+    path = configinfo["path"]
+
+    url = "https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + path
+    http_client = tornado.httpclient.HTTPClient()
+    request = tornado.httpclient.HTTPRequest(
+            url=url,
+            user_agent="Maria's API Test")
+    try:
+        response = http_client.fetch(request)
+        responseDict = json.loads(response.body)
+        content = base64.b64decode(responseDict["content"])
+        print content 
+
+    except tornado.httpclient.HTTPError as e:
+        print "Error: ", e
+    
+    http_client.close()
+    config.close()
+
 
 def main():
-    response = raw_input("Do you want to:\n 1. import 2. aggregate \n ")
+    response = raw_input("Do you want to:\n 1. import 2. aggregate 3. request file \n")
     if response == "1":
         doJSONImport()
-    else:
+    elif response == "2":
         response = raw_input("Is your GET request:\n 1. empty 2. full \n ")
 
         if response == "1":
-            doJSONAggregate("full")
-        else:
             doJSONAggregate("empty")
+        else:
+            doJSONAggregate("full")
+    else:
+        getFileContents()
 
 main()
