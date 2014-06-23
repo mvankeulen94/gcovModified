@@ -19,6 +19,33 @@ from pygments.lexers import CLexer
 from pygments.lexers import guess_lexer
 from pygments.formatters import HtmlFormatter
 
+# Copyright (c) 2014, Georg Brandl and Pygments contributors.
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+    # 1. Redistributions of source code must retain the above copyright
+    #    notice, this list of conditions and the following disclaimer.
+    # 2. Redistributions in binary form must reproduce the above copyright
+    #    notice, this list of conditions and the following disclaimer in the
+    #    documentation and/or other materials provided with the distribution.
+    # 3. All advertising materials mentioning features or use of this software
+    #    must display the following acknowledgement:
+    #    This product includes software developed by the <organization>.
+    # 4. Neither the name of the <organization> nor the
+    #    names of its contributors may be used to endorse or promote products
+    #    derived from this software without specific prior written permission.
+    # 
+    # THIS SOFTWARE IS PROVIDED BY GEORG BRANDL AND PYGMENTS CONTRIBUTORS ''AS IS'' AND ANY
+    # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    # DISCLAIMED. IN NO EVENT SHALL GEORG BRANDL AND PYGMENTS CONTRIBUTORS BE LIABLE FOR ANY
+    # DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    # (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 def doJSONImport():
     """Read a JSON file and output the file with added values.
@@ -135,7 +162,7 @@ def getFileContents():
         responseDict = json.loads(response.body)
         content = base64.b64decode(responseDict["content"])
         outfile = open("gitcontent.html", "w")
-        outfile.write(highlight(content, guess_lexer(content), HtmlFormatter()))
+        outfile.write(highlight(content, guess_lexer(content), CoverageFormatter()))
         outfile.close()
 
     except tornado.httpclient.HTTPError as e:
@@ -144,6 +171,43 @@ def getFileContents():
     http_client.close()
     config.close()
 
+class CoverageFormatter(HtmlFormatter):
+    def __init__(self):
+        HtmlFormatter.__init__(self, linenos="inline")
+    def _wrap_inlinelinenos(self, inner):
+        lines = list(inner)
+        sp = self.linenospecial
+        st = self.linenostep
+        num = self.linenostart
+        mw = len(str(len(lines) + num - 1))
+
+        if self.noclasses:
+            if sp:
+                for t, line in lines:
+                    if num%sp == 0:
+                        style = 'background-color: #ffffc0; padding: 0 5px 0 5px'
+                    else:
+                        style = 'background-color: #f0f0f0; padding: 0 5px 0 5px'
+                    yield 1, '<span style="%s">%*s</span> ' % (
+                        style, mw, (num%st and ' ' or num)) + line
+                    num += 1
+            else:
+                for t, line in lines:
+                    yield 1, ('<span style="background-color: #f0f0f0; '
+                              'padding: 0 5px 0 5px">%*s</span> ' % (
+                              mw, (num%st and ' ' or num)) + line)
+                    num += 1
+        elif sp:
+            for t, line in lines:
+                yield 1, '<span class="lineno%s" id="line%s">%*s</span> ' % (
+                    num%sp == 0 and ' special' or '', str(num), mw,
+                    (num%st and ' ' or num)) + line
+                num += 1
+        else:
+            for t, line in lines:
+                yield 1, '<span class="lineno" id="line%s">%*s</span> ' % (
+                    str(num), mw, (num%st and ' ' or num)) + line
+                num += 1
 
 def main():
     response = raw_input("Do you want to:\n 1. import 2. aggregate 3. request file \n")
