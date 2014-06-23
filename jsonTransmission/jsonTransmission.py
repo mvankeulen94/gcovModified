@@ -22,6 +22,7 @@ class Application(tornado.web.Application):
         self.client = motor.MotorClient(conf["hostname"], conf["port"])
         self.db = self.client[conf["database"]]
         self.collection = self.db[conf["collection"]]
+        self.httpport = conf["httpport"]
         super(Application, self).__init__([
         (r"/", MainHandler),
         (r"/report", ReportHandler),
@@ -42,30 +43,6 @@ class MainHandler(tornado.web.RequestHandler):
 
 
 class ReportHandler(tornado.web.RequestHandler):
-    @tornado.web.asynchronous
-    @gen.coroutine
-    def post(self):
-        if self.request.headers.get("Content-Type") == "application/json":
-            # Get git hashes and build hashes
-            pipeline = [{"$project":{"gitHash":1, "buildHash":1}}, 
-                        {"$group":{"_id":{"gitHash":"$gitHash", "build":"$buildHash"}}}]
-            cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
-            self.write("<html><body>Report:\n")
-
-            while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                obj = bsondumps(bsonobj)
-                build = bsonobj["_id"]["build"]
-                gitHash = bsonobj["_id"]["gitHash"]
-                url = self.request.full_url()
-                url += "?gitHash=" + gitHash + "&build=" + build
-                self.write("<a href=\"" + url + "\"> " + build + ", " 
-                           + gitHash + " </a><br />")
-            self.write("</body></html>")
-
-        else:
-            self.write("\nError!\n")
-    
     @tornado.web.asynchronous
     @gen.coroutine
     def get(self):
@@ -137,6 +114,6 @@ class ReportHandler(tornado.web.RequestHandler):
         
 if __name__ == "__main__":
     application = Application()
-    application.listen(8888)
+    application.listen(application.httpport)
     tornado.ioloop.IOLoop.instance().start()
 

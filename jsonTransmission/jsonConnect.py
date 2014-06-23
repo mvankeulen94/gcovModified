@@ -37,6 +37,11 @@ def doJSONImport():
                       help="string specifying url",
                       default=None)
 
+    parser.add_option("-t", "--testname", dest="tname",
+                      help="name of the test",
+                      default=None)
+
+
     (options, args) = parser.parse_args()
     
     if options.fname is None:
@@ -55,6 +60,10 @@ def doJSONImport():
         print "\nERROR: Must specify connection string \n"
         sys.exit(-1)
    
+    if options.tname is None:
+        print "\nERROR: Must specify test name \n"
+        sys.exit(-1)
+
     http_client = tornado.httpclient.HTTPClient()
 
     for line in open(options.fname, "r"):
@@ -64,6 +73,7 @@ def doJSONImport():
         record = json.loads(line)
         record["gitHash"] = options.ghash 
         record["buildHash"] = options.bhash 
+        record["testName"] = options.tname
         
         request = tornado.httpclient.HTTPRequest(
                                  url=options.connectstr, 
@@ -82,11 +92,11 @@ def doJSONAggregate(body):
     http_client = tornado.httpclient.HTTPClient()
     if body == "full":
         request = tornado.httpclient.HTTPRequest(
-                             url="http://127.0.0.1:8888/report",
+                             url="http://127.0.0.1:8080/report",
                              method="GET")
     else:
         request = tornado.httpclient.HTTPRequest(
-                             url="http://127.0.0.1:8888/report?" + 
+                             url="http://127.0.0.1:8080/report?" + 
                                  "gitHash=OLDGITHASH234980234809&" + 
                                  "build=OLDBUILDHASH392804",
                              method="GET")
