@@ -60,25 +60,18 @@ class DataHandler(tornado.web.RequestHandler):
         pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildHash": buildHash}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
        
         cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
+        result = {}
+        result["counts"] = []
         executedLines = []
         nonExecutedLines = []
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
-            obj = bsondumps(bsonobj)
-            count = bsonobj["count"]
-            if count != 0:
-                executedLines.append(bsonobj["_id"])
-            else:
-                nonExecutedLines.append(bsonobj["_id"])
-        self.write("Executed: ")
-        for thing in executedLines:
-            self.write(thing)
-            self.write(" ")
-        self.write("Not executed: ")
-        for thing in nonExecutedLines:
-            self.write(thing)
-            self.write(" ")
-
+            if not "file" in result:
+                result["file"] = bsonobj["_id"]["file"]
+            result["counts"].append({"l": bsonobj["_id"]["line"], "c": bsonobj["count"]})
+        
+        self.write(result)
+            
 
 class ReportHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
