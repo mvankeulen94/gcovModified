@@ -123,6 +123,27 @@ def doJSONImport():
     
     http_client.close()
 
+
+def doJSONCoverage():
+    http_client = tornado.httpclient.HTTPClient()
+
+    record = {} 
+    record["gitHash"] = "0cc8d91cb3f1a60d5a80f97ec13660b850b99bc3" 
+    record["build"] = "build1" 
+    record["file"] = "/usr/include/c++/4.8.2/bits/stl_pair.h"
+        
+    request = tornado.httpclient.HTTPRequest(
+                             url="http://127.0.0.1:8080/data",
+                             method="POST", 
+                             body=json.dumps(record))
+    try:
+        response = http_client.fetch(request)
+        print response.body
+    except tornado.httpclient.HTTPError as e:
+        print "Error: ", e
+    
+    http_client.close()
+
 def doJSONAggregate(body):
     http_client = tornado.httpclient.HTTPClient()
     if body == "empty":
@@ -191,7 +212,8 @@ class CoverageFormatter(HtmlFormatter):
                 
 
 def main():
-    response = raw_input("Do you want to:\n 1. import 2. aggregate 3. request file \n")
+    response = raw_input("Do you want to:\n 1. import 2. aggregate 3. request file " + 
+                         "4. request coverage data\n")
     if response == "1":
         doJSONImport()
     elif response == "2":
@@ -201,7 +223,9 @@ def main():
             doJSONAggregate("empty")
         else:
             doJSONAggregate("full")
-    else:
+    elif response == "3":
         getFileContents()
+    else:
+        doJSONCoverage()
 
 main()

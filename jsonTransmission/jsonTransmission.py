@@ -26,6 +26,7 @@ class Application(tornado.web.Application):
         super(Application, self).__init__([
         (r"/", MainHandler),
         (r"/report", ReportHandler),
+        (r"/data", DataHandler),
         ],)
 
 class MainHandler(tornado.web.RequestHandler):
@@ -40,6 +41,43 @@ class MainHandler(tornado.web.RequestHandler):
                        " inserted!\n")
         else:
             self.write("\nError!\n")
+
+
+class DataHandler(tornado.web.RequestHandler):
+    @tornado.web.asynchronous
+    @gen.coroutine
+    def post(self):
+        self.json_args = json_decode(self.request.body)
+        if (self.json_args["gitHash"] == None or self.json_args["build"] == None
+            or self.json_args["file"] == None):
+                self.write("Error!\n")
+                return
+#        if self.json_args["testName"] == None:
+#            self.json_args["testName"] = "all"
+        gitHash = self.json_args["gitHash"]
+        buildHash = self.json_args["build"]
+        fileName = self.json_args["file"]
+        pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildHash": buildHash}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+       
+        cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
+        executedLines = []
+        nonExecutedLines = []
+        while (yield cursor.fetch_next):
+            bsonobj = cursor.next_object()
+            obj = bsondumps(bsonobj)
+            count = bsonobj["count"]
+            if count != 0:
+                executedLines.append(bsonobj["_id"])
+            else:
+                nonExecutedLines.append(bsonobj["_id"])
+        self.write("Executed: ")
+        for thing in executedLines:
+            self.write(thing)
+            self.write(" ")
+        self.write("Not executed: ")
+        for thing in nonExecutedLines:
+            self.write(thing)
+            self.write(" ")
 
 
 class ReportHandler(tornado.web.RequestHandler):
