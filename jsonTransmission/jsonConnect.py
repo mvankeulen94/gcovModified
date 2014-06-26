@@ -174,40 +174,21 @@ def getFileContents():
 class CoverageFormatter(HtmlFormatter):
     def __init__(self):
         HtmlFormatter.__init__(self, linenos="inline")
-    def _wrap_inlinelinenos(self, inner):
-        lines = list(inner)
-        sp = self.linenospecial
-        st = self.linenostep
-        num = self.linenostart
-        mw = len(str(len(lines) + num - 1))
+    
+    def wrap(self, source, outfile):
+        return self._wrap_code(source)
 
-        if self.noclasses:
-            if sp:
-                for t, line in lines:
-                    if num%sp == 0:
-                        style = 'background-color: #ffffc0; padding: 0 5px 0 5px'
-                    else:
-                        style = 'background-color: #f0f0f0; padding: 0 5px 0 5px'
-                    yield 1, '<span style="%s">%*s</span> ' % (
-                        style, mw, (num%st and ' ' or num)) + line
-                    num += 1
-            else:
-                for t, line in lines:
-                    yield 1, ('<span style="background-color: #f0f0f0; '
-                              'padding: 0 5px 0 5px">%*s</span> ' % (
-                              mw, (num%st and ' ' or num)) + line)
-                    num += 1
-        elif sp:
-            for t, line in lines:
-                yield 1, '<span class="lineno%s" id="line%s">%*s</span> ' % (
-                    num%sp == 0 and ' special' or '', str(num), mw,
-                    (num%st and ' ' or num)) + line
+    def _wrap_code(self, source):
+        num = 0
+        yield 0, '<div class="highlight"><pre>'
+        for i, t in source:
+            if i == 1:
                 num += 1
-        else:
-            for t, line in lines:
-                yield 1, '<span class="lineno" id="line%s">%*s</span> ' % (
-                    str(num), mw, (num%st and ' ' or num)) + line
-                num += 1
+                t = '<span id="line%s">' % str(num) + t
+                t += '</span>'
+            yield i, t
+        yield 0, '</pre></div>'
+                
 
 def main():
     response = raw_input("Do you want to:\n 1. import 2. aggregate 3. request file \n")
