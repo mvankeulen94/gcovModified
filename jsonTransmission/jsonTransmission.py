@@ -26,6 +26,7 @@ class Application(tornado.web.Application):
         super(Application, self).__init__([
         (r"/", MainHandler),
         (r"/report", ReportHandler),
+        (r"/data", DataHandler),
         ],)
 
 class MainHandler(tornado.web.RequestHandler):
@@ -41,6 +42,36 @@ class MainHandler(tornado.web.RequestHandler):
         else:
             self.write("\nError!\n")
 
+
+class DataHandler(tornado.web.RequestHandler):
+    @tornado.web.asynchronous
+    @gen.coroutine
+    def post(self):
+        self.json_args = json_decode(self.request.body)
+        if (self.json_args["gitHash"] == None or self.json_args["build"] == None
+            or self.json_args["file"] == None):
+                self.write("Error!\n")
+                return
+#        if self.json_args["testName"] == None:
+#            self.json_args["testName"] = "all"
+        gitHash = self.json_args["gitHash"]
+        buildHash = self.json_args["build"]
+        fileName = self.json_args["file"]
+        pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildHash": buildHash}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+       
+        cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
+        result = {}
+        result["counts"] = []
+        executedLines = []
+        nonExecutedLines = []
+        while (yield cursor.fetch_next):
+            bsonobj = cursor.next_object()
+            if not "file" in result:
+                result["file"] = bsonobj["_id"]["file"]
+            result["counts"].append({"l": bsonobj["_id"]["line"], "c": bsonobj["count"]})
+        
+        self.write(result)
+            
 
 class ReportHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
