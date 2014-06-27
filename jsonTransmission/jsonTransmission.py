@@ -48,16 +48,16 @@ class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def post(self):
         self.json_args = json_decode(self.request.body)
-        if (self.json_args["gitHash"] == None or self.json_args["build"] == None
+        if (self.json_args["gitHash"] == None or self.json_args["buildID"] == None
             or self.json_args["file"] == None):
                 self.write("Error!\n")
                 return
 #        if self.json_args["testName"] == None:
 #            self.json_args["testName"] = "all"
         gitHash = self.json_args["gitHash"]
-        buildHash = self.json_args["build"]
+        buildID = self.json_args["buildID"]
         fileName = self.json_args["file"]
-        pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildHash": buildHash}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+        pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
        
         cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
         result = {}
@@ -80,33 +80,33 @@ class ReportHandler(tornado.web.RequestHandler):
         args = self.request.arguments
         
         if len(args) == 0:
-            # Get git hashes and build hashes
-            pipeline = [{"$project":{"gitHash":1, "buildHash":1}}, 
-                        {"$group":{"_id":{"gitHash":"$gitHash", "build":"$buildHash"}}}]
+            # Get git hashes and build IDs 
+            pipeline = [{"$project":{"gitHash":1, "buildID":1}}, 
+                        {"$group":{"_id":{"gitHash":"$gitHash", "buildID":"$buildID"}}}]
             cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
             self.write("<html><body>Report:\n")
 
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 obj = bsondumps(bsonobj)
-                build = bsonobj["_id"]["build"]
+                buildID = bsonobj["_id"]["buildID"]
                 gitHash = bsonobj["_id"]["gitHash"]
                 url = self.request.full_url()
-                url += "?gitHash=" + gitHash + "&build=" + build
-                self.write("<a href=\"" + url + "\"> " + build + ", " 
+                url += "?gitHash=" + gitHash + "&buildID=" + buildID
+                self.write("<a href=\"" + url + "\"> " + buildID + ", " 
                            + gitHash + " </a><br />")
             self.write("</body></html>")
 
         else:    
-            if args.get("gitHash") == None or args.get("build") == None:
+            if args.get("gitHash") == None or args.get("buildID") == None:
                 self.write("Error!\n")
                 return
             # Generate line count results
             gitHash = args.get("gitHash")[0]
-            buildHash = args.get("build")[0]
-            self.write(gitHash + ", " + buildHash)
+            buildID = args.get("buildID")[0]
+            self.write(gitHash + ", " + buildID)
             pipeline = [{"$match":{"file": re.compile("^src\/mongo"), 
-                         "gitHash": gitHash, "buildHash": buildHash}}, 
+                         "gitHash": gitHash, "buildID": buildID}}, 
                         {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, 
                         {"$group":{"_id":"$file", "count":{"$sum":1}, 
                          "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]

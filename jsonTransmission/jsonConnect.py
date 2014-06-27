@@ -19,6 +19,9 @@ from pygments.lexers import CLexer
 from pygments.lexers import guess_lexer
 from pygments.formatters import HtmlFormatter
 
+import datetime 
+
+# Pygments BSD License:
 # Copyright (c) 2014, Georg Brandl and Pygments contributors.
 # All rights reserved.
 # 
@@ -54,8 +57,9 @@ def doJSONImport():
     are added to the JSON that is output.
     """
     parser = optparse.OptionParser(usage="""\
-                                   %prog [database] [collection] [filename]
-                                   [gitHash] [buildHash]""")
+                                   %prog [filename] [gitHash] 
+                                   [buildID] [connectionstring]
+                                   [testname] [branch] [platform]""")
 
     # add in command line options. Add mongo host/port combo later
     parser.add_option("-f", "--filename", dest="fname",
@@ -64,8 +68,8 @@ def doJSONImport():
     parser.add_option("-g", "--githash", dest="ghash",
                       help="git hash of code being tested",
                       default=None)
-    parser.add_option("-b", "--buildhash", dest="bhash", 
-                      help="build hash of code being tested",
+    parser.add_option("-b", "--buildid", dest="bhash", 
+                      help="build ID of code being tested",
                       default=None)
 
     parser.add_option("-c", "--connectionstring", dest="connectstr",
@@ -74,6 +78,14 @@ def doJSONImport():
 
     parser.add_option("-t", "--testname", dest="tname",
                       help="name of the test",
+                      default=None)
+
+    parser.add_option("-r", "--branch", dest="branch",
+                      help="name of the branch",
+                      default=None)
+
+    parser.add_option("-p", "--platform", dest="pform",
+                      help="build platform",
                       default=None)
 
 
@@ -88,7 +100,7 @@ def doJSONImport():
         sys.exit(-1)
     
     if options.bhash is None:
-        print "\nERROR: Must specify build hash \n"
+        print "\nERROR: Must specify build ID \n"
         sys.exit(-1)
  
     if options.connectstr is None:
@@ -99,6 +111,14 @@ def doJSONImport():
         print "\nERROR: Must specify test name \n"
         sys.exit(-1)
 
+    if options.branch is None:
+        print "\nERROR: Must specify branch name \n"
+        sys.exit(-1)
+
+    if options.pform is None:
+        print "\nERROR: Must specify platform \n"
+        sys.exit(-1)
+
     http_client = tornado.httpclient.HTTPClient()
 
     for line in open(options.fname, "r"):
@@ -107,8 +127,15 @@ def doJSONImport():
         
         record = json.loads(line)
         record["gitHash"] = options.ghash 
-        record["buildHash"] = options.bhash 
+        record["buildID"] = options.bhash 
         record["testName"] = options.tname
+
+        fileIndex = record["file"].rfind("/") + 1
+        record["dir"] = record["file"][: fileIndex]
+
+        record["date"] = str(datetime.datetime.now())
+        record["branch"] = options.branch
+        record["platform"] = options.pform
         
         request = tornado.httpclient.HTTPRequest(
                                  url=options.connectstr, 
@@ -129,7 +156,7 @@ def doJSONCoverage():
 
     record = {} 
     record["gitHash"] = "0cc8d91cb3f1a60d5a80f97ec13660b850b99bc3" 
-    record["build"] = "build1" 
+    record["buildID"] = "build1" 
     record["file"] = "/usr/include/c++/4.8.2/bits/stl_pair.h"
         
     request = tornado.httpclient.HTTPRequest(
@@ -154,7 +181,7 @@ def doJSONAggregate(body):
         request = tornado.httpclient.HTTPRequest(
                              url="http://127.0.0.1:8080/report?" + 
                                  "gitHash=OLDGITHASH234980234809&" + 
-                                 "build=OLDBUILDHASH392804",
+                                 "buildID=OLDBUILDHASH392804",
                              method="GET")
 
     try:
