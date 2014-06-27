@@ -99,20 +99,23 @@ class ReportHandler(tornado.web.RequestHandler):
         
         if len(args) == 0:
             # Get git hashes and build IDs 
-            pipeline = [{"$project":{"gitHash":1, "buildID":1}}, 
-                        {"$group":{"_id":{"gitHash":"$gitHash", "buildID":"$buildID"}}}]
-            cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
-            self.write("<html><body>Report:\n")
+            cursor =  self.application.metaCollection.find()
+            self.write("<html><body>\n")
 
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
-                obj = bsondumps(bsonobj)
-                buildID = bsonobj["_id"]["buildID"]
-                gitHash = bsonobj["_id"]["gitHash"]
+                buildID = bsonobj["buildID"]
+                gitHash = bsonobj["gitHash"]
+                branch = bsonobj["branch"]
+                platform = bsonobj["platform"]
+                date = bsonobj["date"]
                 url = self.request.full_url()
                 url += "?gitHash=" + gitHash + "&buildID=" + buildID
-                self.write("<a href=\"" + url + "\"> " + buildID + ", " 
-                           + gitHash + " </a><br />")
+                self.write("<a href=\"" + url + "\"> ") 
+                self.write("Branch: " + branch + " Git Hash: " + gitHash +
+                           " Build ID: " + buildID + " Build Platform: " +
+                           platform + " Date: " + date + "\n")
+                self.write("</a><br />")
             self.write("</body></html>")
 
         else:    
