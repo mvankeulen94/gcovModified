@@ -22,6 +22,7 @@ class Application(tornado.web.Application):
         self.client = motor.MotorClient(conf["hostname"], conf["port"])
         self.db = self.client[conf["database"]]
         self.collection = self.db[conf["collection"]]
+        self.metaCollection = self.db[conf["metaCollection"]]
         self.httpport = conf["httpport"]
         super(Application, self).__init__([
         (r"/", MainHandler),
@@ -36,7 +37,19 @@ class MainHandler(tornado.web.RequestHandler):
         self.write(self.request.headers.get("Content-Type"))
         if self.request.headers.get("Content-Type") == "application/json":
             self.json_args = json_decode(self.request.body)
-            result = yield self.application.collection.insert(self.json_args)
+
+            # Insert meta-information
+            updatedDoc = {"gitHash": self.json_args["gitHash"], 
+                          "buildID": self.json_args["buildID"]}
+            result = yield self.application.metaCollection.update(updatedDoc, self.json_args["meta"], upsert=True)
+
+            # Insert information
+            record = {}
+            for key in self.json_args.keys():
+                if key != "meta":
+                    record[key] = self.json_args[key]
+
+            result = yield self.application.collection.insert(record)
             self.write("\nRecord for " + self.json_args.get("file") + 
                        " inserted!\n")
         else:
@@ -48,16 +61,21 @@ class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def post(self):
         self.json_args = json_decode(self.request.body)
-        if (self.json_args["gitHash"] == None or self.json_args["build"] == None
+        if (self.json_args["gitHash"] == None or self.json_args["buildID"] == None
             or self.json_args["file"] == None):
                 self.write("Error!\n")
                 return
-#        if self.json_args["testName"] == None:
-#            self.json_args["testName"] = "all"
+
         gitHash = self.json_args["gitHash"]
-        buildHash = self.json_args["build"]
+        buildID = self.json_args["buildID"]
         fileName = self.json_args["file"]
-        pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildHash": buildHash}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+
+        if "testName" in self.json_args:
+            testName = self.json_args["testName"]
+            pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+   
+        else:
+            pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
        
         cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
         result = {}
@@ -80,33 +98,36 @@ class ReportHandler(tornado.web.RequestHandler):
         args = self.request.arguments
         
         if len(args) == 0:
-            # Get git hashes and build hashes
-            pipeline = [{"$project":{"gitHash":1, "buildHash":1}}, 
-                        {"$group":{"_id":{"gitHash":"$gitHash", "build":"$buildHash"}}}]
-            cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
-            self.write("<html><body>Report:\n")
+            # Get git hashes and build IDs 
+            cursor =  self.application.metaCollection.find()
+            self.write("<html><body>\n")
 
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
-                obj = bsondumps(bsonobj)
-                build = bsonobj["_id"]["build"]
-                gitHash = bsonobj["_id"]["gitHash"]
+                buildID = bsonobj["buildID"]
+                gitHash = bsonobj["gitHash"]
+                branch = bsonobj["branch"]
+                platform = bsonobj["platform"]
+                date = bsonobj["date"]
                 url = self.request.full_url()
-                url += "?gitHash=" + gitHash + "&build=" + build
-                self.write("<a href=\"" + url + "\"> " + build + ", " 
-                           + gitHash + " </a><br />")
+                url += "?gitHash=" + gitHash + "&buildID=" + buildID
+                self.write("<a href=\"" + url + "\"> ") 
+                self.write("Branch: " + branch + " Git Hash: " + gitHash +
+                           " Build ID: " + buildID + " Build Platform: " +
+                           platform + " Date: " + date + "\n")
+                self.write("</a><br />")
             self.write("</body></html>")
 
         else:    
-            if args.get("gitHash") == None or args.get("build") == None:
+            if args.get("gitHash") == None or args.get("buildID") == None:
                 self.write("Error!\n")
                 return
             # Generate line count results
             gitHash = args.get("gitHash")[0]
-            buildHash = args.get("build")[0]
-            self.write(gitHash + ", " + buildHash)
+            buildID = args.get("buildID")[0]
+            self.write(gitHash + ", " + buildID)
             pipeline = [{"$match":{"file": re.compile("^src\/mongo"), 
-                         "gitHash": gitHash, "buildHash": buildHash}}, 
+                         "gitHash": gitHash, "buildID": buildID}}, 
                         {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, 
                         {"$group":{"_id":"$file", "count":{"$sum":1}, 
                          "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
