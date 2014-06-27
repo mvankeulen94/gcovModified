@@ -22,6 +22,7 @@ class Application(tornado.web.Application):
         self.client = motor.MotorClient(conf["hostname"], conf["port"])
         self.db = self.client[conf["database"]]
         self.collection = self.db[conf["collection"]]
+        self.metaCollection = self.db[conf["metaCollection"]]
         self.httpport = conf["httpport"]
         super(Application, self).__init__([
         (r"/", MainHandler),
@@ -36,7 +37,19 @@ class MainHandler(tornado.web.RequestHandler):
         self.write(self.request.headers.get("Content-Type"))
         if self.request.headers.get("Content-Type") == "application/json":
             self.json_args = json_decode(self.request.body)
-            result = yield self.application.collection.insert(self.json_args)
+
+            # Insert meta-information
+            updatedDoc = {"gitHash": self.json_args["gitHash"], 
+                          "buildID": self.json_args["buildID"]}
+            result = yield self.application.metaCollection.update(updatedDoc, self.json_args["meta"], upsert=True)
+
+            # Insert information
+            record = {}
+            for key in self.json_args.keys():
+                if key != "meta":
+                    record[key] = self.json_args[key]
+
+            result = yield self.application.collection.insert(record)
             self.write("\nRecord for " + self.json_args.get("file") + 
                        " inserted!\n")
         else:
@@ -52,12 +65,17 @@ class DataHandler(tornado.web.RequestHandler):
             or self.json_args["file"] == None):
                 self.write("Error!\n")
                 return
-#        if self.json_args["testName"] == None:
-#            self.json_args["testName"] = "all"
+
         gitHash = self.json_args["gitHash"]
         buildID = self.json_args["buildID"]
         fileName = self.json_args["file"]
-        pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+
+        if "testName" in self.json_args:
+            testName = self.json_args["testName"]
+            pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+   
+        else:
+            pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
        
         cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
         result = {}

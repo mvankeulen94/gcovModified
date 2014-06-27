@@ -133,10 +133,14 @@ def doJSONImport():
         fileIndex = record["file"].rfind("/") + 1
         record["dir"] = record["file"][: fileIndex]
 
-        record["date"] = str(datetime.datetime.now())
-        record["branch"] = options.branch
-        record["platform"] = options.pform
-        
+        # Add meta info
+        record["meta"] = {}
+        record["meta"]["date"] = str(datetime.datetime.now())
+        record["meta"]["branch"] = options.branch
+        record["meta"]["platform"] = options.pform
+        record["meta"]["gitHash"] = options.ghash 
+        record["meta"]["buildID"] = options.bhash 
+       
         request = tornado.httpclient.HTTPRequest(
                                  url=options.connectstr, 
                                  method="POST", 
