@@ -12,6 +12,7 @@ import tornado.web
 from tornado.escape import json_decode
 import motor
 from tornado import gen
+import ssl
 
 
 class Application(tornado.web.Application):
@@ -19,11 +20,18 @@ class Application(tornado.web.Application):
         configFile = open("config.conf", "r")
         conf = json.loads(configFile.readline())
         configFile.close()
-        self.client = motor.MotorClient(conf["hostname"], conf["port"])
+        self.client = motor.MotorClient(host=conf["hostname"], port=conf["port"], 
+                                        ssl=True, ssl_certfile=conf["clientPEM"], 
+                                        ssl_cert_reqs=ssl.CERT_REQUIRED, 
+                                        ssl_ca_certs=conf["CAfile"])
+
+        self.client.the_database.authenticate(conf["username"], mechanism="MONGODB-X509")
+
         self.db = self.client[conf["database"]]
         self.collection = self.db[conf["collection"]]
         self.metaCollection = self.db[conf["metaCollection"]]
         self.httpport = conf["httpport"]
+       
         super(Application, self).__init__([
         (r"/", MainHandler),
         (r"/report", ReportHandler),
