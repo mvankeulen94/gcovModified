@@ -82,6 +82,7 @@ def doJSONImport():
                 continue
             
             print "\nNow importing " + fileName + ":\n"
+
             # Insert the record for a file
             for line in open(os.path.join(dirPath, fileName), "r"):
                 if line == "\n":
@@ -94,14 +95,6 @@ def doJSONImport():
                 fileIndex = record["file"].rfind("/") + 1
                 record["dir"] = record["file"][: fileIndex]
 
-                # Add meta info
-                record["meta"] = {}
-                record["meta"]["date"] = str(datetime.datetime.now())
-                record["meta"]["branch"] = options.branch
-                record["meta"]["platform"] = options.pform
-                record["meta"]["gitHash"] = options.ghash 
-                record["meta"]["buildID"] = options.bhash 
-       
                 request = tornado.httpclient.HTTPRequest(
                                          url=options.connectstr, 
                                          method="POST", 
@@ -112,6 +105,24 @@ def doJSONImport():
                     print response.body
                 except tornado.httpclient.HTTPError as e:
                     print "Error: ", e
+
+
+    # Gather meta info
+    metaRecord = {}
+    metaRecord["_id"] = {"buildID": options.bhash,
+                         "gitHash": options.ghash}
+    metaRecord["date"] = str(datetime.datetime.now())
+    metaRecord["branch"] = options.branch
+    metaRecord["platform"] = options.pform
+       
+    request = tornado.httpclient.HTTPRequest(url=options.connectstr + "/meta", 
+                                             method="POST", 
+                                             body=json.dumps(metaRecord))
+    try:
+        response = http_client.fetch(request)
+        print response.body
+    except tornado.httpclient.HTTPError as e:
+        print "Error: ", e
 
     http_client.close()
 

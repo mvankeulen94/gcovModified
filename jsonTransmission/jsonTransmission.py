@@ -14,6 +14,8 @@ import motor
 from tornado import gen
 import ssl
 
+import pipelines
+
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -30,13 +32,16 @@ class Application(tornado.web.Application):
         self.db = self.client[conf["database"]]
         self.collection = self.db[conf["collection"]]
         self.metaCollection = self.db[conf["metaCollection"]]
+        self.covCollection = self.db[conf["covCollection"]]
         self.httpport = conf["httpport"]
        
         super(Application, self).__init__([
         (r"/", MainHandler),
         (r"/report", ReportHandler),
         (r"/data", DataHandler),
+        (r"/meta", MetaHandler),
         ],)
+
 
 class MainHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
@@ -45,12 +50,7 @@ class MainHandler(tornado.web.RequestHandler):
         self.write(self.request.headers.get("Content-Type"))
         if self.request.headers.get("Content-Type") == "application/json":
             self.json_args = json_decode(self.request.body)
-
-            # Insert meta-information
-            updatedDoc = {"gitHash": self.json_args["gitHash"], 
-                          "buildID": self.json_args["buildID"]}
-            result = yield self.application.metaCollection.update(updatedDoc, self.json_args["meta"], upsert=True)
-
+      
             # Insert information
             record = {}
             for key in self.json_args.keys():
@@ -99,6 +99,77 @@ class DataHandler(tornado.web.RequestHandler):
         self.write(result)
             
 
+class MetaHandler(tornado.web.RequestHandler):
+    @tornado.web.asynchronous
+    @gen.coroutine
+    def post(self):
+        self.json_args = json_decode(self.request.body)
+        
+        # Generate line count results
+        gitHash = self.json_args["_id"]["gitHash"]
+        buildID = self.json_args["_id"]["buildID"]
+        self.write(gitHash + ", " + buildID)
+        pipeline = [{"$match":{"file": re.compile("^src\/mongo"), 
+                     "gitHash": gitHash, "buildID": buildID}}, 
+                    {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, 
+                    {"$group":{"_id":"$file", "count":{"$sum":1}, 
+                     "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
+
+        cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
+        total = 0
+        noexecTotal = 0
+        while (yield cursor.fetch_next):
+            bsonobj = cursor.next_object()
+            obj = bsondumps(bsonobj)
+            count = bsonobj["count"]
+            noexec = bsonobj["noexec"]
+            total += count
+            noexecTotal += noexec
+
+        self.json_args["lineCount"] = total
+        self.json_args["lineCovCount"] = total-noexecTotal
+
+        # Generate function results
+        pipeline = [{"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"},
+                    {"$group": { "_id":"$functions.nm", 
+                                 "count" : { "$sum" : "$functions.ec"}}},
+                    {"$sort":{"count":-1}}] 
+        cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
+        noexec = 0
+        total = 0
+        while (yield cursor.fetch_next):
+            bsonobj = cursor.next_object()
+            count = bsonobj["count"]
+            total += 1
+            if count == 0:
+                noexec += 1
+
+        self.json_args["functionCount"] = total
+        self.json_args["functionCovCount"] = total-noexec
+  
+        # Insert meta-information
+        try:
+            result = yield self.application.metaCollection.insert(self.json_args)
+        except DuplicateKeyError as e:
+            print e
+
+        # Generate coverage data by directory
+        pipelines.line_pipeline[0]["$match"]["gitHash"] = self.json_args["_id"]["gitHash"]
+        pipelines.function_pipeline[0]["$match"]["gitHash"] = self.json_args["_id"]["gitHash"]
+        pipelines.line_pipeline[0]["$match"]["buildID"] = self.json_args["_id"]["buildID"]
+        pipelines.function_pipeline[0]["$match"]["buildID"] = self.json_args["_id"]["buildID"]
+
+        cursor =  yield self.application.collection.aggregate(pipelines.line_pipeline, cursor={})
+        while (yield cursor.fetch_next):
+            bsonobj = cursor.next_object()
+            result = yield self.application.covCollection.insert(bsonobj)
+        
+        cursor =  yield self.application.collection.aggregate(pipelines.function_pipeline, cursor={})
+        while (yield cursor.fetch_next):
+            bsonobj = cursor.next_object()
+            result = yield self.application.covCollection.insert(bsonobj)
+
+
 class ReportHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
@@ -126,56 +197,7 @@ class ReportHandler(tornado.web.RequestHandler):
                 self.write("</a><br />")
             self.write("</body></html>")
 
-        else:    
-            if args.get("gitHash") == None or args.get("buildID") == None:
-                self.write("Error!\n")
-                return
-            # Generate line count results
-            gitHash = args.get("gitHash")[0]
-            buildID = args.get("buildID")[0]
-            self.write(gitHash + ", " + buildID)
-            pipeline = [{"$match":{"file": re.compile("^src\/mongo"), 
-                         "gitHash": gitHash, "buildID": buildID}}, 
-                        {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, 
-                        {"$group":{"_id":"$file", "count":{"$sum":1}, 
-                         "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]
 
-            cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
-            total = 0
-            noexecTotal = 0
-            while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                obj = bsondumps(bsonobj)
-                count = bsonobj["count"]
-                noexec = bsonobj["noexec"]
-                total += count
-                noexecTotal += noexec
-
-            percentage = float(total-noexecTotal)/total * 100
-            self.write("\nlines: " + str(total) + ", hit: " + 
-                       str(total-noexecTotal) + ", % executed: " + 
-                       str(percentage) + "\n")
-
-            # Generate function results
-            pipeline = [{"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"},
-                        {"$group": { "_id":"$functions.nm", 
-                                     "count" : { "$sum" : "$functions.ec"}}},
-                        {"$sort":{"count":-1}}] 
-            cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
-            noexec = 0
-            total = 0
-            while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                count = bsonobj["count"]
-                total += 1
-                if count == 0:
-                    noexec += 1
-
-            percentage = float(total-noexec)/total * 100
-            self.write("\nfunctions: " + str(total) + 
-                       ", hit: " + str(total-noexec) + 
-                       ", % executed: " + str(percentage) + "\n")
-        
 if __name__ == "__main__":
     application = Application()
     application.listen(application.httpport)
