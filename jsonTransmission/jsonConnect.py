@@ -78,7 +78,7 @@ def doJSONAggregate(body):
         request = tornado.httpclient.HTTPRequest(
                              url="http://127.0.0.1:8080/report",
                              method="GET")
-    elif body == "full":
+    else:
 
         gitHash = raw_input("Please enter git hash: ")
         request = tornado.httpclient.HTTPRequest(
@@ -86,15 +86,6 @@ def doJSONAggregate(body):
                                  "gitHash=" + gitHash +
                                  "&buildID=build1",
                              method="GET")
-    else:
-
-        gitHash = raw_input("Please enter git hash: ")
-        record = {"_id": {"buildID": "build1", "dir" : "src/mongo/db/pipeline/", "gitHash" : gitHash}}
-        request = tornado.httpclient.HTTPRequest(
-                             url="http://127.0.0.1:8080/data",
-                             method="POST", 
-                             body=json.dumps(record))
-
 
     try:
         response = http_client.fetch(request)
@@ -163,10 +154,8 @@ def main():
             doJSONAggregate("empty")
         else:
             doJSONAggregate("full")
-    elif response == "3":
-        getFileContents()
     else:
-        doJSONAggregate("directory")
+        getFileContents()
   
 
 main()
