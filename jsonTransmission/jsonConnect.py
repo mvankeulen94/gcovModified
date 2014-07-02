@@ -53,9 +53,9 @@ import datetime
 
 def doJSONCoverage():
     http_client = tornado.httpclient.HTTPClient()
-
+    gitHash = raw_input("Please enter git hash: ")
     record = {"_id": {}} 
-    record["_id"]["gitHash"] = "e1b9a40e657746c387febb8e47aedf485eea1ef3" 
+    record["_id"]["gitHash"] = gitHash 
     record["_id"]["buildID"] = "build1" 
     record["_id"]["dir"] = "src/mongo/util/"
         
@@ -79,13 +79,17 @@ def doJSONAggregate(body):
                              url="http://127.0.0.1:8080/report",
                              method="GET")
     elif body == "full":
+
+        gitHash = raw_input("Please enter git hash: ")
         request = tornado.httpclient.HTTPRequest(
                              url="http://127.0.0.1:8080/report?" + 
-                                 "gitHash=e1b9a40e657746c387febb8e47aedf485eea1ef3" +
-                                 "buildID=build1",
+                                 "gitHash=" + gitHash +
+                                 "&buildID=build1",
                              method="GET")
     else:
-        record = {"_id": {"buildID": "build1", "dir" : "src/mongo/db/pipeline/", "gitHash" : "e1b9a40e657746c387febb8e47aedf485eea1ef3"}}
+
+        gitHash = raw_input("Please enter git hash: ")
+        record = {"_id": {"buildID": "build1", "dir" : "src/mongo/db/pipeline/", "gitHash" : gitHash}}
         request = tornado.httpclient.HTTPRequest(
                              url="http://127.0.0.1:8080/data",
                              method="POST", 
@@ -149,7 +153,7 @@ class CoverageFormatter(HtmlFormatter):
                 
 
 def main():
-    response = raw_input("Do you want to:\n 1. request coverage data 2. aggregate " + "3. request file 4. request directory coverage\n")
+    response = raw_input("Do you want to:\n 1. request directory coverage data 2. request summary coverage data \n")
     if response == "1":
         doJSONCoverage()
     elif response == "2":
