@@ -65,9 +65,11 @@ class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def post(self):
         self.json_args = json_decode(self.request.body)
-        if "dir" in self.json_args["_id"]:
-            query = {"_id": self.json_args["_id"]}
+        query = {}
+        cursor = None # Cursor with which to traverse query results
+        if "_id" in self.json_args:
             cursor = self.application.covCollection.find(query)
+            query["_id"] = self.json_args["_id"]
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 self.write(bsonobj)
@@ -76,6 +78,15 @@ class DataHandler(tornado.web.RequestHandler):
             buildID = self.json_args["buildID"]
             fileName = self.json_args["file"]
 
+            if "testName" in self.json_args:
+                testName = self.json_args["testName"]
+                pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+   
+            else:
+                pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+       
+            cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
+            result = {}
             result["counts"] = []
             executedLines = []
             nonExecutedLines = []
@@ -84,9 +95,9 @@ class DataHandler(tornado.web.RequestHandler):
                 if not "file" in result:
                     result["file"] = bsonobj["_id"]["file"]
                 result["counts"].append({"l": bsonobj["_id"]["line"], "c": bsonobj["count"]})
-        
-            self.write(result)
             
+            self.write(result)
+
 
 class MetaHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
