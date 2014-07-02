@@ -13,6 +13,7 @@ from tornado.escape import json_decode
 import motor
 from tornado import gen
 import ssl
+import tornado.httpclient
 
 import pipelines
 
@@ -52,12 +53,7 @@ class MainHandler(tornado.web.RequestHandler):
             self.json_args = json_decode(self.request.body)
       
             # Insert information
-            record = {}
-            for key in self.json_args.keys():
-                if key != "meta":
-                    record[key] = self.json_args[key]
-
-            result = yield self.application.collection.insert(record)
+            result = yield self.application.collection.insert(self.json_args)
             self.write("\nRecord for " + self.json_args.get("file") + 
                        " inserted!\n")
         else:
@@ -150,8 +146,8 @@ class MetaHandler(tornado.web.RequestHandler):
         # Insert meta-information
         try:
             result = yield self.application.metaCollection.insert(self.json_args)
-        except DuplicateKeyError as e:
-            print e
+        except tornado.httpclient.HTTPError as e:
+            print "Error:", e
 
         # Generate coverage data by directory
         pipelines.line_pipeline[0]["$match"]["gitHash"] = self.json_args["_id"]["gitHash"]
@@ -167,7 +163,7 @@ class MetaHandler(tornado.web.RequestHandler):
         cursor =  yield self.application.collection.aggregate(pipelines.function_pipeline, cursor={})
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
-            result = yield self.application.covCollection.insert(bsonobj)
+            result = yield self.application.covCollection.update({"_id": bsonobj["_id"]}, {"$set": {"funcCount": bsonobj["funcCount"], "funcCovCount": bsonobj["funcCovCount"]}})
 
 
 class ReportHandler(tornado.web.RequestHandler):
