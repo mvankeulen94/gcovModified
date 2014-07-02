@@ -54,10 +54,10 @@ import datetime
 def doJSONCoverage():
     http_client = tornado.httpclient.HTTPClient()
 
-    record = {} 
-    record["gitHash"] = "0cc8d91cb3f1a60d5a80f97ec13660b850b99bc3" 
-    record["buildID"] = "build1" 
-    record["file"] = "/usr/include/c++/4.8.2/bits/stl_pair.h"
+    record = {"_id": {}} 
+    record["_id"]["gitHash"] = "e1b9a40e657746c387febb8e47aedf485eea1ef3" 
+    record["_id"]["buildID"] = "build1" 
+    record["_id"]["dir"] = "src/mongo/util/"
         
     request = tornado.httpclient.HTTPRequest(
                              url="http://127.0.0.1:8080/data",
@@ -78,12 +78,19 @@ def doJSONAggregate(body):
         request = tornado.httpclient.HTTPRequest(
                              url="http://127.0.0.1:8080/report",
                              method="GET")
-    else:
+    elif body == "full":
         request = tornado.httpclient.HTTPRequest(
                              url="http://127.0.0.1:8080/report?" + 
-                                 "gitHash=OLDGITHASH234980234809&" + 
-                                 "buildID=OLDBUILDHASH392804",
+                                 "gitHash=e1b9a40e657746c387febb8e47aedf485eea1ef3" +
+                                 "buildID=build1",
                              method="GET")
+    else:
+        record = {"_id": {"buildID": "build1", "dir" : "src/mongo/db/pipeline/", "gitHash" : "e1b9a40e657746c387febb8e47aedf485eea1ef3"}}
+        request = tornado.httpclient.HTTPRequest(
+                             url="http://127.0.0.1:8080/data",
+                             method="POST", 
+                             body=json.dumps(record))
+
 
     try:
         response = http_client.fetch(request)
@@ -142,8 +149,7 @@ class CoverageFormatter(HtmlFormatter):
                 
 
 def main():
-    response = raw_input("Do you want to:\n 1. request coverage data 2. aggregate " + 
-                         "3. request file\n"
+    response = raw_input("Do you want to:\n 1. request coverage data 2. aggregate " + "3. request file 4. request directory coverage\n")
     if response == "1":
         doJSONCoverage()
     elif response == "2":
@@ -153,7 +159,10 @@ def main():
             doJSONAggregate("empty")
         else:
             doJSONAggregate("full")
-    else:
+    elif response == "3":
         getFileContents()
+    else:
+        doJSONAggregate("directory")
+  
 
 main()
