@@ -195,7 +195,6 @@ class ReportHandler(tornado.web.RequestHandler):
             buildID = args.get("buildID")[0]
             query = {"_id": {"gitHash": gitHash, "buildID": buildID}}
             cursor = self.application.metaCollection.find(query)
-            self.write(gitHash + ", " + buildID)
 
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
