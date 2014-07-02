@@ -51,13 +51,20 @@ import datetime
     # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-def doJSONCoverage():
+def doJSONCoverage(dataType):
     http_client = tornado.httpclient.HTTPClient()
     gitHash = raw_input("Please enter git hash: ")
-    record = {"_id": {}} 
-    record["_id"]["gitHash"] = gitHash 
-    record["_id"]["buildID"] = "build1" 
-    record["_id"]["dir"] = "src/mongo/util/"
+    record = {}
+
+    if dataType == "directory":
+        record = {"_id": {}} 
+        record["_id"]["gitHash"] = gitHash 
+        record["_id"]["buildID"] = "build1" 
+        record["_id"]["dir"] = "src/mongo/util/"
+    else:
+        record["file"] = "src/mongo/db/pipeline/value_internal.h"
+        record["gitHash"] = gitHash
+        record["buildID"] = "build1"
         
     request = tornado.httpclient.HTTPRequest(
                              url="http://127.0.0.1:8080/data",
@@ -79,7 +86,6 @@ def doJSONAggregate(body):
                              url="http://127.0.0.1:8080/report",
                              method="GET")
     else:
-
         gitHash = raw_input("Please enter git hash: ")
         request = tornado.httpclient.HTTPRequest(
                              url="http://127.0.0.1:8080/report?" + 
@@ -144,9 +150,14 @@ class CoverageFormatter(HtmlFormatter):
                 
 
 def main():
-    response = raw_input("Do you want to:\n 1. request directory coverage data 2. request summary coverage data \n")
+    response = raw_input("Do you want to:\n 1. request individual coverage data 2. request summary coverage data \n")
     if response == "1":
-        doJSONCoverage()
+        response = raw_input("Are you requesting:\n 1. directory coverage 2. file coverage\n")
+        if response == "1":
+            doJSONCoverage("directory")
+        else:
+            doJSONCoverage("file")
+
     elif response == "2":
         response = raw_input("Is your GET request:\n 1. empty 2. full \n ")
 
