@@ -65,34 +65,27 @@ class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def post(self):
         self.json_args = json_decode(self.request.body)
-        if (self.json_args["gitHash"] == None or self.json_args["buildID"] == None
-            or self.json_args["file"] == None):
-                self.write("Error!\n")
-                return
-
-        gitHash = self.json_args["gitHash"]
-        buildID = self.json_args["buildID"]
-        fileName = self.json_args["file"]
-
-        if "testName" in self.json_args:
-            testName = self.json_args["testName"]
-            pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
-   
+        if "dir" in self.json_args["_id"]:
+            query = {"_id": self.json_args["_id"]}
+            cursor = self.application.covCollection.find(query)
+            while (yield cursor.fetch_next):
+                bsonobj = cursor.next_object()
+                self.write(bsonobj)
         else:
-            pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
-       
-        cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
-        result = {}
-        result["counts"] = []
-        executedLines = []
-        nonExecutedLines = []
-        while (yield cursor.fetch_next):
-            bsonobj = cursor.next_object()
-            if not "file" in result:
-                result["file"] = bsonobj["_id"]["file"]
-            result["counts"].append({"l": bsonobj["_id"]["line"], "c": bsonobj["count"]})
+            gitHash = self.json_args["gitHash"]
+            buildID = self.json_args["buildID"]
+            fileName = self.json_args["file"]
+
+            result["counts"] = []
+            executedLines = []
+            nonExecutedLines = []
+            while (yield cursor.fetch_next):
+                bsonobj = cursor.next_object()
+                if not "file" in result:
+                    result["file"] = bsonobj["_id"]["file"]
+                result["counts"].append({"l": bsonobj["_id"]["line"], "c": bsonobj["count"]})
         
-        self.write(result)
+            self.write(result)
             
 
 class MetaHandler(tornado.web.RequestHandler):
@@ -179,8 +172,8 @@ class ReportHandler(tornado.web.RequestHandler):
 
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
-                buildID = bsonobj["buildID"]
-                gitHash = bsonobj["gitHash"]
+                buildID = bsonobj["_id"]["buildID"]
+                gitHash = bsonobj["_id"]["gitHash"]
                 branch = bsonobj["branch"]
                 platform = bsonobj["platform"]
                 date = bsonobj["date"]
@@ -192,6 +185,23 @@ class ReportHandler(tornado.web.RequestHandler):
                            platform + " Date: " + date + "\n")
                 self.write("</a><br />")
             self.write("</body></html>")
+
+        else:    
+            if args.get("gitHash") == None or args.get("buildID") == None:
+                self.write("Error!\n")
+                return
+            # Generate line count results
+            gitHash = args.get("gitHash")[0]
+            buildID = args.get("buildID")[0]
+            query = {"_id": {"gitHash": gitHash, "buildID": buildID}}
+            cursor = self.application.metaCollection.find(query)
+            self.write(gitHash + ", " + buildID)
+
+            while (yield cursor.fetch_next):
+                bsonobj = cursor.next_object()
+                self.write(bsonobj)
+
+
 
 
 if __name__ == "__main__":
