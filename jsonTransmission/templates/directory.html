@@ -1,0 +1,24 @@
+<html>
+    <head>
+        <title>{{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</title>
+    </head>
+    <body>
+        <h1>Coverage Results For {{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</h1>
+        <h2>Summary</h2>
+        <p> 
+            Total lines: {{ result['lineCount'] }} <br />
+            Lines covered: {{ result['lineCovCount'] }} <br />
+            Percent lines covered: {{ result['lineCovPercentage'] }} <br />
+        </p>
+        <p>
+            Total functions: {{ result['funcCount'] }} <br />
+            Functions covered: {{ result['funcCovCount'] }} <br />
+            Percent functions covered: {{ result['funcCovPercentage'] }} <br />
+        <h2>Coverage Results by Directory</h2>
+        <ul>
+            {% for dir in directories %}
+            <li>{{ dir['_id']['dir'] }} <!-- <a href="{{ url }}?build={{ result['_id']['buildID'] }}&gitHash={{ result['_id']['gitHash'] }}">{{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</a>--> </li>
+            {% end %}
+        </ul>
+    </body>
+</html>
