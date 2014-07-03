@@ -179,24 +179,14 @@ class ReportHandler(tornado.web.RequestHandler):
         if len(args) == 0:
             # Get git hashes and build IDs 
             cursor =  self.application.metaCollection.find()
-            self.write("<html><body>\n")
+            results = []
 
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
-                buildID = bsonobj["_id"]["buildID"]
-                gitHash = bsonobj["_id"]["gitHash"]
-                branch = bsonobj["branch"]
-                platform = bsonobj["platform"]
-                date = bsonobj["date"]
-                url = self.request.full_url()
-                url += "?gitHash=" + gitHash + "&buildID=" + buildID
-                self.write("<a href=\"" + url + "\"> ") 
-                self.write("Branch: " + branch + " Git Hash: " + gitHash +
-                           " Build ID: " + buildID + " Build Platform: " +
-                           platform + " Date: " + date + "\n")
-                self.write("</a><br />")
-            self.write("</body></html>")
+                results.append(bsonobj)
 
+            url = self.request.full_url()
+            self.render("report.html", results=results, url=url)
         else:    
             if args.get("gitHash") == None or args.get("buildID") == None:
                 self.write("Error!\n")

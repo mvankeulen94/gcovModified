@@ -1,0 +1,13 @@
+<html>
+    <head>
+        <title>Coverage Summary Dock</title>
+    </head>
+    <body>
+        <h1>Summary</h1>
+        <ul>
+            {% for result in results %}
+            <li><a href="{{ url }}?build={{ result['_id']['buildID'] }}&gitHash={{ result['_id']['gitHash'] }}">{{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</a></li><br />
+            {% end %}
+        </ul>
+    </body>
+</html>
