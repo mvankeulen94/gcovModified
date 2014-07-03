@@ -17,6 +17,8 @@ import tornado.httpclient
 
 import pipelines
 
+import urllib
+
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -63,23 +65,27 @@ class MainHandler(tornado.web.RequestHandler):
 class DataHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
-    def post(self):
-        self.json_args = json_decode(self.request.body)
+    def get(self):
+        url = self.request.full_url()[-len(self.request.uri):]
+        args = self.request.arguments
         query = {}
         cursor = None # Cursor with which to traverse query results
-        if "_id" in self.json_args:
+        result = None # Dictionary to store query result
+        if "dir" in args:
+            query["_id"] = {"gitHash": args.get("gitHash")[0],
+                            "buildID": args.get("buildID")[0],
+                            "dir": urllib.unquote(args.get("dir")[0])}
             cursor = self.application.covCollection.find(query)
-            query["_id"] = self.json_args["_id"]
             while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                self.write(bsonobj)
+                result = cursor.next_object()
+            self.render("templates/data.html", result=result, url=url)
         else:
-            gitHash = self.json_args["gitHash"]
-            buildID = self.json_args["buildID"]
-            fileName = self.json_args["file"]
+            gitHash = args.get("gitHash")[0]
+            buildID = args.get("buildID")[0]
+            fileName = args.get("file")[0]
 
-            if "testName" in self.json_args:
-                testName = self.json_args["testName"]
+            if "testName" in args:
+                testName = args.get("testName")
                 pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
    
             else:
@@ -128,6 +134,8 @@ class MetaHandler(tornado.web.RequestHandler):
 
         self.json_args["lineCount"] = total
         self.json_args["lineCovCount"] = total-noexecTotal
+        self.json_args["lineCovPercentage"] = float(total-noexecTotal)/total * 100
+
 
         # Generate function results
         pipeline = [{"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"},
@@ -144,8 +152,9 @@ class MetaHandler(tornado.web.RequestHandler):
             if count == 0:
                 noexec += 1
 
-        self.json_args["functionCount"] = total
-        self.json_args["functionCovCount"] = total-noexec
+        self.json_args["funcCount"] = total
+        self.json_args["funcCovCount"] = total-noexec
+        self.json_args["funcCovPercentage"] = float(total-noexec)/total * 100
   
         # Insert meta-information
         try:
@@ -162,12 +171,22 @@ class MetaHandler(tornado.web.RequestHandler):
         cursor =  yield self.application.collection.aggregate(pipelines.line_pipeline, cursor={})
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
+            
+            # Generate line coverage percentage
+            lineCount = bsonobj["lineCount"]
+            lineCovCount = bsonobj["lineCovCount"]
+            bsonobj["lineCovPercentage"] = float(lineCovCount)/lineCount * 100
             result = yield self.application.covCollection.insert(bsonobj)
         
         cursor =  yield self.application.collection.aggregate(pipelines.function_pipeline, cursor={})
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
-            result = yield self.application.covCollection.update({"_id": bsonobj["_id"]}, {"$set": {"funcCount": bsonobj["funcCount"], "funcCovCount": bsonobj["funcCovCount"]}})
+
+            # Generate function coverage percentage
+            funcCount = bsonobj["funcCount"]
+            funcCovCount = bsonobj["funcCovCount"]
+            funcCovPercentage = float(funcCovCount)/funcCount * 100
+            result = yield self.application.covCollection.update({"_id": bsonobj["_id"]}, {"$set": {"funcCount": bsonobj["funcCount"], "funcCovCount": bsonobj["funcCovCount"], "funcCovPercentage": funcCovPercentage}})
 
 
 class ReportHandler(tornado.web.RequestHandler):
@@ -175,7 +194,8 @@ class ReportHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def get(self):
         args = self.request.arguments
-        
+        url = self.request.full_url()
+
         if len(args) == 0:
             # Get git hashes and build IDs 
             cursor =  self.application.metaCollection.find()
@@ -185,22 +205,33 @@ class ReportHandler(tornado.web.RequestHandler):
                 bsonobj = cursor.next_object()
                 results.append(bsonobj)
 
-            url = self.request.full_url()
-            self.render("report.html", results=results, url=url)
+            self.render("templates/report.html", results=results, url=url)
         else:    
             if args.get("gitHash") == None or args.get("buildID") == None:
                 self.write("Error!\n")
                 return
-            # Generate line count results
+            url = self.request.full_url()[:-len(self.request.uri)]
+            url += "/data"
             gitHash = args.get("gitHash")[0]
             buildID = args.get("buildID")[0]
             query = {"_id": {"gitHash": gitHash, "buildID": buildID}}
             cursor = self.application.metaCollection.find(query)
-
+            metaResult = None
+            dirResults = []
+            
+            # Get summary results
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
-                self.write(bsonobj)
-
+                metaResult = bsonobj
+           
+            query = {"_id.gitHash": gitHash, "_id.buildID": buildID}
+            cursor = self.application.covCollection.find(query)
+            
+            # Get directory results
+            while (yield cursor.fetch_next):
+                bsonobj = cursor.next_object()
+                dirResults.append(bsonobj["_id"]["dir"])
+            self.render("templates/directory.html", result=metaResult, directories=dirResults, url=url)
 
 
 

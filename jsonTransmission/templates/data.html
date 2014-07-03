@@ -1,0 +1,24 @@
+<html>
+    <head>
+    <title>Coverage Data For {{ result['_id']['dir'] }}</title>
+    </head>
+    <body>
+        <h1>Summary For {{ result['_id']['dir'] }}</h1>
+        <p>
+            { % if 'lineCount' in result % }
+            Total lines: {{ result['lineCount'] }} <br />
+            Lines covered: {{ result['lineCovCount'] }} <br />
+            Percent lines covered: {{ result['lineCovPercentage'] }} <br />
+            {% else %}
+            {% end %}
+        </p>
+        <p>
+            { % if 'funcCount' in result % } 
+            Total functions: {{ result['funcCount'] }} <br />
+            Functions covered: {{ result['funcCovCount'] }} <br />
+            Percent functions covered: {{ result['funcCovPercentage'] }} <br />
+            {% else %}
+            {% end %}
+        </p>
+   </body>
+</html>

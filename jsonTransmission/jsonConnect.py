@@ -54,22 +54,17 @@ import datetime
 def doJSONCoverage(dataType):
     http_client = tornado.httpclient.HTTPClient()
     gitHash = raw_input("Please enter git hash: ")
-    record = {}
+    buildID = "build1"
+    urlAddons = "?buildID=" + buildID + "&gitHash=" + gitHash
 
     if dataType == "directory":
-        record = {"_id": {}} 
-        record["_id"]["gitHash"] = gitHash 
-        record["_id"]["buildID"] = "build1" 
-        record["_id"]["dir"] = "src/mongo/util/"
+        urlAddons += "&dir=" + "src/mongo/util/"
     else:
-        record["file"] = "src/mongo/db/pipeline/value_internal.h"
-        record["gitHash"] = gitHash
-        record["buildID"] = "build1"
+        urlAddons += "&file=" + "src/mongo/db/pipeline/value_internal.h"
         
     request = tornado.httpclient.HTTPRequest(
-                             url="http://127.0.0.1:8080/data",
-                             method="POST", 
-                             body=json.dumps(record))
+                             url="http://127.0.0.1:8080/data" + urlAddons,
+                             method="GET")
     try:
         response = http_client.fetch(request)
         print response.body
