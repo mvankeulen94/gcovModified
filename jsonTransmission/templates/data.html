@@ -1,17 +1,15 @@
 <html>
     <head>
-        <title>{{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</title>
+    <title>Coverage Data For {{ result['_id']['dir'] }}</title>
     </head>
     <body>
-        <h1>Coverage Results For {{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</h1>
-        <h2>Summary</h2>
-        <p> 
+        <h1>Summary For {{ result['_id']['dir'] }}</h1>
+        <p>
             { % if 'lineCount' in result % }
             Total lines: {{ result['lineCount'] }} <br />
             Lines covered: {{ result['lineCovCount'] }} <br />
             Percent lines covered: {{ result['lineCovPercentage'] }} <br />
             {% else %}
-            <!-- -->
             {% end %}
         </p>
         <p>
@@ -20,14 +18,7 @@
             Functions covered: {{ result['funcCovCount'] }} <br />
             Percent functions covered: {{ result['funcCovPercentage'] }} <br />
             {% else %}
-            <!-- -->
             {% end %}
         </p>
-        <h2>Coverage Results by Directory</h2>
-        <ul>
-            {% for dir in directories %}
-            <li><a href="{{ url }}?buildID={{ result['_id']['buildID'] }}&gitHash={{ result['_id']['gitHash'] }}&dir={{ url_escape(dir) }}">{{ dir }}</a></li>
-            {% end %}
-        </ul>
-    </body>
+   </body>
 </html>

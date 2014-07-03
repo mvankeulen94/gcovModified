@@ -17,6 +17,8 @@ import tornado.httpclient
 
 import pipelines
 
+import urllib
+
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -63,23 +65,27 @@ class MainHandler(tornado.web.RequestHandler):
 class DataHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
-    def post(self):
-        self.json_args = json_decode(self.request.body)
+    def get(self):
+        url = self.request.full_url()[-len(self.request.uri):]
+        args = self.request.arguments
         query = {}
         cursor = None # Cursor with which to traverse query results
-        if "_id" in self.json_args:
+        result = None # Dictionary to store query result
+        if "dir" in args:
+            query["_id"] = {"gitHash": args.get("gitHash")[0],
+                            "buildID": args.get("buildID")[0],
+                            "dir": urllib.unquote(args.get("dir")[0])}
             cursor = self.application.covCollection.find(query)
-            query["_id"] = self.json_args["_id"]
             while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                self.write(bsonobj)
+                result = cursor.next_object()
+            self.render("templates/data.html", result=result, url=url)
         else:
-            gitHash = self.json_args["gitHash"]
-            buildID = self.json_args["buildID"]
-            fileName = self.json_args["file"]
+            gitHash = args.get("gitHash")[0]
+            buildID = args.get("buildID")[0]
+            fileName = args.get("file")[0]
 
-            if "testName" in self.json_args:
-                testName = self.json_args["testName"]
+            if "testName" in args:
+                testName = args.get("testName")
                 pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
    
             else:
@@ -204,7 +210,8 @@ class ReportHandler(tornado.web.RequestHandler):
             if args.get("gitHash") == None or args.get("buildID") == None:
                 self.write("Error!\n")
                 return
-
+            url = self.request.full_url()[:-len(self.request.uri)]
+            url += "/data"
             gitHash = args.get("gitHash")[0]
             buildID = args.get("buildID")[0]
             query = {"_id": {"gitHash": gitHash, "buildID": buildID}}
@@ -223,7 +230,7 @@ class ReportHandler(tornado.web.RequestHandler):
             # Get directory results
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
-                dirResults.append(bsonobj)
+                dirResults.append(bsonobj["_id"]["dir"])
             self.render("templates/directory.html", result=metaResult, directories=dirResults, url=url)
 
 
