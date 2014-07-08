@@ -24,7 +24,7 @@
             <tr><td>Directory</td><td>Line Coverage</td><td>Functions</td>
             {% for dirResult in dirResults %}
             <tr>
-                <td>{{ dirResult['_id']['dir'] }}</td>
+                <td><a href="{{ url }}?buildID={{ result['_id']['buildID'] }}&gitHash={{ result['_id']['gitHash'] }}&dir={{ url_escape(dirResult['_id']['dir']) }}">{{ dirResult['_id']['dir'] }}</a></td>
                 {% if 'lineCount' in dirResult %}
                 <td>{{ dirResult['lineCovPercentage'] }}%, 
                     {{ dirResult['lineCovCount'] }}/{{ dirResult['lineCount'] }}</td>

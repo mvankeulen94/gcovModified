@@ -71,14 +71,30 @@ class DataHandler(tornado.web.RequestHandler):
         query = {}
         cursor = None # Cursor with which to traverse query results
         result = None # Dictionary to store query result
+        gitHash = args.get("gitHash")[0]
+        buildID = args.get("buildID")[0]
         if "dir" in args:
-            query["_id"] = {"gitHash": args.get("gitHash")[0],
-                            "buildID": args.get("buildID")[0],
-                            "dir": urllib.unquote(args.get("dir")[0])}
-            cursor = self.application.covCollection.find(query)
+            directory = urllib.unquote(args.get("dir")[0])
+            pipeline = [{"$match":{"file": re.compile("^" + directory), "gitHash": gitHash, "buildID": buildID}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+
+            cursor = yield self.application.collection.aggregate(pipeline, cursor={})
+            results = {}
             while (yield cursor.fetch_next):
-                result = cursor.next_object()
-            self.render("templates/data.html", result=result, url=url)
+                bsonobj = cursor.next_object()
+                amountAdded = 0
+                if bsonobj["count"] != 0:
+                    amountAdded = 1
+                if bsonobj["_id"]["file"] in results:
+                    results[bsonobj["_id"]["file"]]["lineCovCount"]+= amountAdded
+                    results[bsonobj["_id"]["file"]]["lineCount"] += 1
+                else:
+                    results[bsonobj["_id"]["file"]] = {}
+                    results[bsonobj["_id"]["file"]]["lineCovCount"] = amountAdded
+                    results[bsonobj["_id"]["file"]]["lineCount"] = 1
+
+            for key in results.keys():
+                results[key]["lineCovPercentage"] = round(results[key]["lineCovCount"]/results[key]["lineCount"] * 100, 1)
+            self.render("templates/data.html", results=results, url=url, directory=directory, gitHash=gitHash, buildID=buildID)
         else:
             gitHash = args.get("gitHash")[0]
             buildID = args.get("buildID")[0]
