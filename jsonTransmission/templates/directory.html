@@ -6,21 +6,17 @@
         <h1>Coverage Results For {{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</h1>
         <h2>Summary</h2>
         <p> 
-            { % if 'lineCount' in result % }
+            {% if 'lineCount' in result %}
             Total lines: {{ result['lineCount'] }} <br />
             Lines covered: {{ result['lineCovCount'] }} <br />
             Percent lines covered: {{ result['lineCovPercentage'] }} <br />
-            {% else %}
-            <!-- -->
             {% end %}
         </p>
         <p>
-            { % if 'funcCount' in result % } 
+            {% if 'funcCount' in result %} 
             Total functions: {{ result['funcCount'] }} <br />
             Functions covered: {{ result['funcCovCount'] }} <br />
             Percent functions covered: {{ result['funcCovPercentage'] }} <br />
-            {% else %}
-            <!-- -->
             {% end %}
         </p>
         <h2>Coverage Results by Directory</h2>
