@@ -134,7 +134,7 @@ class MetaHandler(tornado.web.RequestHandler):
 
         self.json_args["lineCount"] = total
         self.json_args["lineCovCount"] = total-noexecTotal
-        self.json_args["lineCovPercentage"] = float(total-noexecTotal)/total * 100
+        self.json_args["lineCovPercentage"] = round(float(total-noexecTotal)/total * 100, 1)
 
 
         # Generate function results
@@ -154,7 +154,7 @@ class MetaHandler(tornado.web.RequestHandler):
 
         self.json_args["funcCount"] = total
         self.json_args["funcCovCount"] = total-noexec
-        self.json_args["funcCovPercentage"] = float(total-noexec)/total * 100
+        self.json_args["funcCovPercentage"] = round(float(total-noexec)/total * 100, 1)
   
         # Insert meta-information
         try:
@@ -175,7 +175,7 @@ class MetaHandler(tornado.web.RequestHandler):
             # Generate line coverage percentage
             lineCount = bsonobj["lineCount"]
             lineCovCount = bsonobj["lineCovCount"]
-            bsonobj["lineCovPercentage"] = float(lineCovCount)/lineCount * 100
+            bsonobj["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 1)
             result = yield self.application.covCollection.insert(bsonobj)
         
         cursor =  yield self.application.collection.aggregate(pipelines.function_pipeline, cursor={})
@@ -185,7 +185,7 @@ class MetaHandler(tornado.web.RequestHandler):
             # Generate function coverage percentage
             funcCount = bsonobj["funcCount"]
             funcCovCount = bsonobj["funcCovCount"]
-            funcCovPercentage = float(funcCovCount)/funcCount * 100
+            funcCovPercentage = round(float(funcCovCount)/funcCount * 100, 1)
             result = yield self.application.covCollection.update({"_id": bsonobj["_id"]}, {"$set": {"funcCount": bsonobj["funcCount"], "funcCovCount": bsonobj["funcCovCount"], "funcCovPercentage": funcCovPercentage}})
 
 
@@ -230,8 +230,8 @@ class ReportHandler(tornado.web.RequestHandler):
             # Get directory results
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
-                dirResults.append(bsonobj["_id"]["dir"])
-            self.render("templates/directory.html", result=metaResult, directories=dirResults, url=url)
+                dirResults.append(bsonobj)
+            self.render("templates/directory.html", result=metaResult, dirResults=dirResults, url=url)
 
 
 
