@@ -19,7 +19,7 @@ def doJSONImport():
     parser.add_option("-g", "--githash", dest="ghash",
                       help="git hash of code being tested",
                       default=None)
-    parser.add_option("-b", "--buildid", dest="bhash", 
+    parser.add_option("-b", "--buildid", dest="build", 
                       help="build ID of code being tested",
                       default=None)
 
@@ -43,13 +43,18 @@ def doJSONImport():
                       help="root directory of JSON files",
                       default=None)
 
+    parser.add_option("--recursive", dest="recurse",
+                      help="make import recursive",
+                      action="store_true",
+                      default=False)
+
     (options, args) = parser.parse_args()
     
     if options.ghash is None:
         print "\nERROR: Must specify git hash \n"
         sys.exit(-1)
     
-    if options.bhash is None:
+    if options.build is None:
         print "\nERROR: Must specify build ID \n"
         sys.exit(-1)
  
@@ -74,42 +79,32 @@ def doJSONImport():
         sys.exit(-1)
 
     http_client = tornado.httpclient.HTTPClient()
-    
-    # Walk through files in root
-    for dirPath, subDirs, fileNames in os.walk(options.root):
-        for fileName in fileNames:
-            if not fileName.endswith(".json"):
-                continue
-            
-            print "\nNow importing " + fileName + ":\n"
-
-            # Insert the record for a file
-            for line in open(os.path.join(dirPath, fileName), "r"):
-                if line == "\n":
+   
+    if options.recurse:
+        # Walk through files in root
+        for dirPath, subDirs, fileNames in os.walk(options.root):
+            for fileName in fileNames:
+                # TODO: Add option to specify pattern
+                if not fileName.endswith(".json"):
                     continue
-                record = json.loads(line)
-                record["gitHash"] = options.ghash 
-                record["buildID"] = options.bhash 
-                record["testName"] = options.tname
+            
+                print "\nNow importing " + fileName + ":\n"
 
-                fileIndex = record["file"].rfind("/") + 1
-                record["dir"] = record["file"][: fileIndex]
-
-                request = tornado.httpclient.HTTPRequest(
-                                         url=options.connectstr, 
-                                         method="POST", 
-                                         headers={"Content-Type": "application/json"},
-                                         body=json.dumps(record))
-                try:
-                    response = http_client.fetch(request)
-                    print response.body
-                except tornado.httpclient.HTTPError as e:
-                    print "Error: ", e
-
+                # Insert the record for a file
+                doImportFile(os.path.join(dirPath, fileName), options.ghash, options.build, options.tname, http_client, options.connectstr)
+    
+    else:
+        # Import all json files in current directory
+        files = [os.path.join(options.root, f) for f in os.listdir(options.root) if os.path.isfile(os.path.join(options.root, f))]
+        for f in files:
+            # TODO: Add option to specify pattern
+            if not f.endswith(".json"):
+                continue
+            doImportFile(f, options.ghash, options.build, options.tname, http_client, options.connectstr)
 
     # Gather meta info
     metaRecord = {}
-    metaRecord["_id"] = {"buildID": options.bhash,
+    metaRecord["_id"] = {"buildID": options.build,
                          "gitHash": options.ghash}
     metaRecord["date"] = str(datetime.datetime.now())
     metaRecord["branch"] = options.branch
@@ -125,6 +120,31 @@ def doJSONImport():
         print "Error: ", e
 
     http_client.close()
+
+
+def doImportFile(fileName, gitHash, buildID, testName, http_client, url):
+    """Import contents of a single file into database."""
+    for line in open(fileName, "r"):
+        if line == "\n":
+            continue
+        record = json.loads(line)
+        record["gitHash"] = gitHash 
+        record["buildID"] = buildID 
+        record["testName"] = testName 
+    
+        fileIndex = record["file"].rfind("/") + 1
+        record["dir"] = record["file"][: fileIndex]
+    
+        request = tornado.httpclient.HTTPRequest(
+                                             url=url,
+                                             method="POST", 
+                                             headers={"Content-Type": "application/json"},
+                                             body=json.dumps(record))
+        try:
+            response = http_client.fetch(request)
+            print response.body
+        except tornado.httpclient.HTTPError as e:
+            print "Error: ", e
 
 
 doJSONImport()

@@ -1,22 +1,28 @@
 <html>
     <head>
-    <title>Coverage Data For {{ result['_id']['dir'] }}</title>
+    <title>Coverage Data For {{ directory }}</title>
     </head>
     <body>
-        <h1>Summary For {{ result['_id']['dir'] }}</h1>
-        <p>
-            {% if 'lineCount' in result %}
-            Total lines: {{ result['lineCount'] }} <br />
-            Lines covered: {{ result['lineCovCount'] }} <br />
-            Percent lines covered: {{ result['lineCovPercentage'] }} <br />
+        <h1>Coverage Results by File</h1>
+        <table>
+            <tr><td>File</td><td>Line Coverage</td><td>Functions</td>
+            {% for key in results.keys() %}
+            <tr>
+                <td><a href="{{ url }}?buildID={{ buildID }}&gitHash={{ gitHash }}&file={{ url_escape(key) }}">{{ key }}</a></td>
+                {% if 'lineCount' in results[key] %}
+                <td>{{ results[key]['lineCovPercentage'] }}%, 
+                    {{ results[key]['lineCovCount'] }}/{{ results[key]['lineCount'] }}</td>
+                {% else %}
+                <td>0.0%, 0/0</td>
+                {% end %}
+                {% if 'funcCount' in results[key] %}
+                <td>{{ results[key]['funcCovPercentage'] }}%, 
+                    {{ results[key]['funcCovCount'] }}/{{ results[key]['funcCount'] }}</td>
+                {% else %}
+                <td>0.0%, 0/0</td>
+                {% end %}
+            </tr> 
             {% end %}
-        </p>
-        <p>
-            {% if 'funcCount' in result %} 
-            Total functions: {{ result['funcCount'] }} <br />
-            Functions covered: {{ result['funcCovCount'] }} <br />
-            Percent functions covered: {{ result['funcCovPercentage'] }} <br />
-            {% end %}
-        </p>
+        </table>
    </body>
 </html>
