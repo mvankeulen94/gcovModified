@@ -14,6 +14,13 @@ import motor
 from tornado import gen
 import ssl
 import tornado.httpclient
+import base64
+
+from pygments import highlight
+from pygments.lexers import PythonLexer
+from pygments.lexers import CLexer
+from pygments.lexers import guess_lexer
+from pygments.formatters import HtmlFormatter
 
 import pipelines
 
@@ -50,7 +57,6 @@ class MainHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
     def post(self):
-        self.write(self.request.headers.get("Content-Type"))
         if self.request.headers.get("Content-Type") == "application/json":
             self.json_args = json_decode(self.request.body)
       
@@ -66,20 +72,33 @@ class DataHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
     def get(self):
-        url = self.request.full_url()[-len(self.request.uri):]
         args = self.request.arguments
+        if len(args) == 0:
+            self.write("\nError!\n")
+
+        url = self.request.full_url()[:-(len(self.request.query)+1)]
         query = {}
         cursor = None # Cursor with which to traverse query results
         result = None # Dictionary to store query result
         gitHash = args.get("gitHash")[0]
         buildID = args.get("buildID")[0]
+
+        # Fill pipeline with gitHash and buildID info
+        pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
+        pipelines.file_func_pipeline[0]["$match"]["gitHash"] = gitHash 
+        pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
+        pipelines.file_func_pipeline[0]["$match"]["buildID"] = buildID 
+      
         if "dir" in args:
             directory = urllib.unquote(args.get("dir")[0])
+
+            # Fill pipeline with directory info
+            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+           
             # Get line results
             results = {} # Store coverage data
-            pipeline = [{"$match":{"file": re.compile("^" + directory), "gitHash": gitHash, "buildID": buildID}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
-
-            cursor = yield self.application.collection.aggregate(pipeline, cursor={})
+            cursor = yield self.application.collection.aggregate(pipelines.file_line_pipeline, cursor={})
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 amountAdded = 0
@@ -98,8 +117,7 @@ class DataHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["file"]]["lineCount"] = 1
 
             # Get function results
-            pipeline = [{"$match":{"file": re.compile("^" + directory), "gitHash": gitHash, "buildID": buildID}}, {"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"}, {"$group": { "_id": {"file": "$file", "function": "$functions.nm"}, "count" : { "$sum" : "$functions.ec"}}}]
-            cursor = yield self.application.collection.aggregate(pipeline, cursor={})
+            cursor = yield self.application.collection.aggregate(pipelines.file_func_pipeline, cursor={})
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 amountAdded = 0 # How much to add to coverage count
@@ -137,6 +155,26 @@ class DataHandler(tornado.web.RequestHandler):
             self.render("templates/data.html", results=results, url=url, directory=directory, gitHash=gitHash, buildID=buildID)
 
         else:
+            if not "file" in args:
+                self.write("\nError!\n")
+                return
+            owner = "mongodb"
+            repo = "mongo"
+            url = "https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + args["file"][0]
+            http_client = tornado.httpclient.HTTPClient()
+            request = tornado.httpclient.HTTPRequest(url=url,
+                                                     user_agent="Maria's API Test")
+            try:
+                response = http_client.fetch(request)
+                responseDict = json.loads(response.body)
+                content = base64.b64decode(responseDict["content"])
+                highlightedContent = highlight(content, guess_lexer(content), CoverageFormatter())
+                self.write(highlightedContent)
+
+            except tornado.httpclient.HTTPError as e:
+                print "Error: ", e
+    
+            http_client.close()
             gitHash = args.get("gitHash")[0]
             buildID = args.get("buildID")[0]
             fileName = args.get("file")[0]
@@ -159,7 +197,7 @@ class DataHandler(tornado.web.RequestHandler):
                     result["file"] = bsonobj["_id"]["file"]
                 result["counts"].append({"l": bsonobj["_id"]["line"], "c": bsonobj["count"]})
             
-            self.write(result)
+            print result
 
 
 class MetaHandler(tornado.web.RequestHandler):
@@ -167,7 +205,11 @@ class MetaHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def post(self):
         self.json_args = json_decode(self.request.body)
-        
+        if not ("gitHash" in self.json_args["_id"] and 
+                "buildID" in self.json_args["_id"]):
+            self.write("Error!\n")
+            return
+
         # Generate line count results
         gitHash = self.json_args["_id"]["gitHash"]
         buildID = self.json_args["_id"]["buildID"]
@@ -252,12 +294,13 @@ class ReportHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def get(self):
         args = self.request.arguments
-        url = self.request.full_url()
+        url = "" # Store URL for data hyperlink
 
         if len(args) == 0:
             # Get git hashes and build IDs 
             cursor =  self.application.metaCollection.find()
             results = []
+            url = self.request.full_url()
 
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
@@ -292,9 +335,26 @@ class ReportHandler(tornado.web.RequestHandler):
             self.render("templates/directory.html", result=metaResult, dirResults=dirResults, url=url)
 
 
+class CoverageFormatter(HtmlFormatter):
+    def __init__(self):
+        HtmlFormatter.__init__(self, linenos="inline")
+    
+    def wrap(self, source, outfile):
+        return self._wrap_code(source)
+
+    def _wrap_code(self, source):
+        num = 0
+        yield 0, '<div class="highlight"><pre>'
+        for i, t in source:
+            if i == 1:
+                num += 1
+                t = '<span id="line%s">' % str(num) + t
+                t += '</span>'
+            yield i, t
+        yield 0, '</pre></div>'
+
 
 if __name__ == "__main__":
     application = Application()
     application.listen(application.httpport)
     tornado.ioloop.IOLoop.instance().start()
-

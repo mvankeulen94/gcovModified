@@ -151,3 +151,63 @@ line_pipeline = [
 		}
 	}
 ]
+
+file_line_pipeline = [
+	{
+		"$match" : {
+			"file" : "", 
+			"gitHash" : "",
+			"buildID" : "" 
+		}
+	},
+	{
+		"$project" : {
+			"file" : 1,
+			"lc" : 1
+		}
+	},
+	{
+		"$unwind" : "$lc"
+	},
+	{
+		"$group" : {
+			"_id" : {
+				"file" : "$file",
+				"line" : "$lc.ln"
+			},
+			"count" : {
+				"$sum" : "$lc.ec"
+			}
+		}
+	}
+]
+
+file_func_pipeline = [
+	{
+		"$match" : {
+			"file" : "", 
+			"gitHash" : "",
+			"buildID" : "" 
+		}
+	},
+	{
+		"$project" : {
+			"file" : 1,
+			"functions" : 1
+		}
+	},
+	{
+		"$unwind" : "$functions"
+	},
+	{
+		"$group" : {
+			"_id" : {
+				"file" : "$file",
+				"function" : "$functions.nm"
+			},
+			"count" : {
+				"$sum" : "$functions.ec"
+			}
+		}
+	}
+]
