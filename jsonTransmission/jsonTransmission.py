@@ -75,26 +75,67 @@ class DataHandler(tornado.web.RequestHandler):
         buildID = args.get("buildID")[0]
         if "dir" in args:
             directory = urllib.unquote(args.get("dir")[0])
+            # Get line results
+            results = {} # Store coverage data
             pipeline = [{"$match":{"file": re.compile("^" + directory), "gitHash": gitHash, "buildID": buildID}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
 
             cursor = yield self.application.collection.aggregate(pipeline, cursor={})
-            results = {}
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 amountAdded = 0
                 if bsonobj["count"] != 0:
                     amountAdded = 1
+
+                # Check if there exists an entry for this file
                 if bsonobj["_id"]["file"] in results:
                     results[bsonobj["_id"]["file"]]["lineCovCount"]+= amountAdded
                     results[bsonobj["_id"]["file"]]["lineCount"] += 1
+
+                # Otherwise, create a new entry
                 else:
                     results[bsonobj["_id"]["file"]] = {}
                     results[bsonobj["_id"]["file"]]["lineCovCount"] = amountAdded
                     results[bsonobj["_id"]["file"]]["lineCount"] = 1
 
+            # Get function results
+            pipeline = [{"$match":{"file": re.compile("^" + directory), "gitHash": gitHash, "buildID": buildID}}, {"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"}, {"$group": { "_id": {"file": "$file", "function": "$functions.nm"}, "count" : { "$sum" : "$functions.ec"}}}]
+            cursor = yield self.application.collection.aggregate(pipeline, cursor={})
+            while (yield cursor.fetch_next):
+                bsonobj = cursor.next_object()
+                amountAdded = 0 # How much to add to coverage count
+
+                # Check if function got executed
+                if bsonobj["count"] != 0:
+                    amountAdded = 1 
+   
+                # Check if there exists an entry for this file
+                if bsonobj["_id"]["file"] in results:
+               
+                    # Check if there exists function coverage data
+                    if "funcCovCount" in results[bsonobj["_id"]["file"]]:
+                        results[bsonobj["_id"]["file"]]["funcCovCount"]+= amountAdded
+                        results[bsonobj["_id"]["file"]]["funcCount"] += 1
+
+                    # Otherwise, initialize function coverage values
+                    else:
+                        results[bsonobj["_id"]["file"]]["funcCovCount"] = amountAdded
+                        results[bsonobj["_id"]["file"]]["funcCount"] = 1
+
+                # Otherwise, create a new entry
+                else:
+                    results[bsonobj["_id"]["file"]] = {}
+                    results[bsonobj["_id"]["file"]]["funcCovCount"] = amountAdded
+                    results[bsonobj["_id"]["file"]]["funcCount"] = 1
+
+            # Add line and function coverage percentage data
             for key in results.keys():
-                results[key]["lineCovPercentage"] = round(results[key]["lineCovCount"]/results[key]["lineCount"] * 100, 1)
+                if "lineCount" in results[key]:
+                    results[key]["lineCovPercentage"] = round(float(results[key]["lineCovCount"])/results[key]["lineCount"] * 100, 2)
+                if "funcCount" in results[key]:
+                    results[key]["funcCovPercentage"] = round(float(results[key]["funcCovCount"])/results[key]["funcCount"] * 100, 2)
+
             self.render("templates/data.html", results=results, url=url, directory=directory, gitHash=gitHash, buildID=buildID)
+
         else:
             gitHash = args.get("gitHash")[0]
             buildID = args.get("buildID")[0]
@@ -131,6 +172,7 @@ class MetaHandler(tornado.web.RequestHandler):
         gitHash = self.json_args["_id"]["gitHash"]
         buildID = self.json_args["_id"]["buildID"]
         self.write(gitHash + ", " + buildID)
+        # Add option to specify what pattern to start with
         pipeline = [{"$match":{"file": re.compile("^src\/mongo"), 
                      "gitHash": gitHash, "buildID": buildID}}, 
                     {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, 
@@ -150,7 +192,7 @@ class MetaHandler(tornado.web.RequestHandler):
 
         self.json_args["lineCount"] = total
         self.json_args["lineCovCount"] = total-noexecTotal
-        self.json_args["lineCovPercentage"] = round(float(total-noexecTotal)/total * 100, 1)
+        self.json_args["lineCovPercentage"] = round(float(total-noexecTotal)/total * 100, 2)
 
 
         # Generate function results
@@ -170,7 +212,7 @@ class MetaHandler(tornado.web.RequestHandler):
 
         self.json_args["funcCount"] = total
         self.json_args["funcCovCount"] = total-noexec
-        self.json_args["funcCovPercentage"] = round(float(total-noexec)/total * 100, 1)
+        self.json_args["funcCovPercentage"] = round(float(total-noexec)/total * 100, 2)
   
         # Insert meta-information
         try:
@@ -191,7 +233,7 @@ class MetaHandler(tornado.web.RequestHandler):
             # Generate line coverage percentage
             lineCount = bsonobj["lineCount"]
             lineCovCount = bsonobj["lineCovCount"]
-            bsonobj["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 1)
+            bsonobj["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
             result = yield self.application.covCollection.insert(bsonobj)
         
         cursor =  yield self.application.collection.aggregate(pipelines.function_pipeline, cursor={})
@@ -201,7 +243,7 @@ class MetaHandler(tornado.web.RequestHandler):
             # Generate function coverage percentage
             funcCount = bsonobj["funcCount"]
             funcCovCount = bsonobj["funcCovCount"]
-            funcCovPercentage = round(float(funcCovCount)/funcCount * 100, 1)
+            funcCovPercentage = round(float(funcCovCount)/funcCount * 100, 2)
             result = yield self.application.covCollection.update({"_id": bsonobj["_id"]}, {"$set": {"funcCount": bsonobj["funcCount"], "funcCovCount": bsonobj["funcCovCount"], "funcCovPercentage": funcCovPercentage}})
 
 
