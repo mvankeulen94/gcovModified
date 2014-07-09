@@ -73,13 +73,23 @@ class DataHandler(tornado.web.RequestHandler):
         result = None # Dictionary to store query result
         gitHash = args.get("gitHash")[0]
         buildID = args.get("buildID")[0]
+
+        # Fill pipeline with gitHash and buildID info
+        pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
+        pipelines.file_func_pipeline[0]["$match"]["gitHash"] = gitHash 
+        pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
+        pipelines.file_func_pipeline[0]["$match"]["buildID"] = buildID 
+      
         if "dir" in args:
             directory = urllib.unquote(args.get("dir")[0])
+
+            # Fill pipeline with directory info
+            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+           
             # Get line results
             results = {} # Store coverage data
-            pipeline = [{"$match":{"file": re.compile("^" + directory), "gitHash": gitHash, "buildID": buildID}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
-
-            cursor = yield self.application.collection.aggregate(pipeline, cursor={})
+            cursor = yield self.application.collection.aggregate(pipelines.file_line_pipeline, cursor={})
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 amountAdded = 0
@@ -98,8 +108,7 @@ class DataHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["file"]]["lineCount"] = 1
 
             # Get function results
-            pipeline = [{"$match":{"file": re.compile("^" + directory), "gitHash": gitHash, "buildID": buildID}}, {"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"}, {"$group": { "_id": {"file": "$file", "function": "$functions.nm"}, "count" : { "$sum" : "$functions.ec"}}}]
-            cursor = yield self.application.collection.aggregate(pipeline, cursor={})
+            cursor = yield self.application.collection.aggregate(pipelines.file_func_pipeline, cursor={})
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 amountAdded = 0 # How much to add to coverage count
