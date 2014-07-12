@@ -50,6 +50,7 @@ class Application(tornado.web.Application):
         (r"/report", ReportHandler),
         (r"/data", DataHandler),
         (r"/meta", MetaHandler),
+        (r"/style", StyleHandler),
         ],)
 
 
@@ -77,6 +78,7 @@ class DataHandler(tornado.web.RequestHandler):
             self.write("\nError!\n")
 
         url = self.request.full_url()[:-(len(self.request.query)+1)]
+        styleUrl = self.request.full_url()[:-len(self.request.uri)] + "/style"
         query = {}
         cursor = None # Cursor with which to traverse query results
         result = None # Dictionary to store query result
@@ -160,6 +162,7 @@ class DataHandler(tornado.web.RequestHandler):
                 return
             owner = "mongodb"
             repo = "mongo"
+            fileName = args["file"][0]
             url = "https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + args["file"][0]
             http_client = tornado.httpclient.HTTPClient()
             request = tornado.httpclient.HTTPRequest(url=url,
@@ -168,8 +171,8 @@ class DataHandler(tornado.web.RequestHandler):
                 response = http_client.fetch(request)
                 responseDict = json.loads(response.body)
                 content = base64.b64decode(responseDict["content"])
-                highlightedContent = highlight(content, guess_lexer(content), CoverageFormatter())
-                self.write(highlightedContent)
+                fileContent = highlight(content, guess_lexer(content), CoverageFormatter())
+                self.render("templates/file.html", fileName=fileName, styleUrl=styleUrl, fileContent=fileContent)
 
             except tornado.httpclient.HTTPError as e:
                 print "Error: ", e
@@ -352,6 +355,16 @@ class CoverageFormatter(HtmlFormatter):
                 t += '</span>'
             yield i, t
         yield 0, '</pre></div>'
+
+
+class StyleHandler(tornado.web.RequestHandler):
+    @tornado.web.asynchronous
+    @gen.coroutine
+    def get(self):
+        args = self.request.arguments
+        if len(args) != 0:
+            return
+        self.write(CoverageFormatter().get_style_defs(".highlight"))
 
 
 if __name__ == "__main__":
