@@ -25,6 +25,7 @@ from pygments.formatters import HtmlFormatter
 import pipelines
 
 import urllib
+import string
 
 
 class Application(tornado.web.Application):
@@ -207,7 +208,8 @@ class DataHandler(tornado.web.RequestHandler):
                     responseDict = json.loads(response.body)
                     content = base64.b64decode(responseDict["content"])
                     fileContent = highlight(content, guess_lexer(content), CoverageFormatter())
-                    self.render("templates/file.html", fileName=fileName, styleUrl=styleUrl, fileContent=fileContent, coveredLines=coveredLines, uncoveredLines=uncoveredLines, dataUrl=dataUrl)
+                    lineCount = string.count(content, "\n")
+                    self.render("templates/file.html", fileName=fileName, styleUrl=styleUrl, fileContent=fileContent, dataUrl=dataUrl, lineCount=lineCount)
 
                 except tornado.httpclient.HTTPError as e:
                     print "Error: ", e
@@ -354,7 +356,7 @@ class ReportHandler(tornado.web.RequestHandler):
 
 class CoverageFormatter(HtmlFormatter):
     def __init__(self):
-        HtmlFormatter.__init__(self, linenos="inline")
+        HtmlFormatter.__init__(self, linenos="table")
     
     def wrap(self, source, outfile):
         return self._wrap_code(source)
@@ -365,7 +367,7 @@ class CoverageFormatter(HtmlFormatter):
         for i, t in source:
             if i == 1:
                 num += 1
-                t = '<span id="count%s" style="display:block; width:7px;"> 000' % str(num) + '</span>' + t
+                t = '<span id="count%s">' % str(num) + '</span>' + t
                 t = '<span id="line%s">' % str(num) + t
                 t += '</span>'
             yield i, t

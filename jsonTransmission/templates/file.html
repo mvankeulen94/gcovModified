@@ -7,21 +7,27 @@
     {% autoescape None %}
     {{ fileContent }}
     </body>
+    <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>            
     <script>
         var xmlHttp = null;
         xmlHttp = new XMLHttpRequest();
         xmlHttp.open("GET", "{{ dataUrl }}", false);
         xmlHttp.send(null);
         result = JSON.parse(xmlHttp.responseText);
-        var coveredLines = []
-        var uncoveredLines = []
+        var coveredLines = [];
+        var uncoveredLines = [];
+        var executableLines = [];
         for (i = 0, len = result["counts"].length; i < len; i++) {
+            lineno = result["counts"][i]["l"].toString();
+            lineCount = result["counts"][i]["c"].toString();
             if (result["counts"][i]["c"] > 0) {
-                coveredLines[coveredLines.length] = "line" + result["counts"][i]["l"].toString()
+                coveredLines[coveredLines.length] = "line" + lineno;
             }
             else {
-                uncoveredLines[uncoveredLines.length] = "line" + result["counts"][i]["l"].toString()
+                uncoveredLines[uncoveredLines.length] = "line" + lineno;
             }
+            document.getElementById("count" + lineno).innerHTML = lineCount + " ";
+            executableLines[result["counts"][i]["l"]] = lineCount;
         }
 
         for (i = 0, len = coveredLines.length; i < len; i++) {
@@ -31,6 +37,22 @@
         for (i = 0, len = uncoveredLines.length; i < len; i++) {
             document.getElementById(uncoveredLines[i]).style.backgroundColor = "F2A5A5";
         }
+        var countsString = "";
+        
+        for (i = 0, len = {{ lineCount }}; i < len; i++) {
+            if (i.toString() in executableLines) {
+                console.log(executableLines[i.toString()]);
+                countsString += executableLines[i.toString()];
+            }
+            else {
+                countsString += " ";
+            }
+        }
+        $(document).ready(function(){
+                $('table').find('tr').each(function(){
+                    $(this).find('td').eq(0).after('<pre><td class="counts">' + '</td></pre>');
+                    });
+                });
 
     </script>
 </html>
