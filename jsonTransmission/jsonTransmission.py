@@ -165,6 +165,7 @@ class DataHandler(tornado.web.RequestHandler):
             gitHash = args.get("gitHash")[0]
             buildID = args.get("buildID")[0]
             fileName = args.get("file")[0]
+            dataUrl = self.request.full_url() + "&counts=true" # URL for requesting counts data
 
             if "testName" in args:
                 testName = args.get("testName")
@@ -187,26 +188,31 @@ class DataHandler(tornado.web.RequestHandler):
                     coveredLines.append(bsonobj["_id"]["line"])
                 else:
                     uncoveredLines.append(bsonobj["_id"]["line"])
+            
+            if "counts" in args and args["counts"][0] == "true":
+                # Send only counts data to client
+                self.write(json.dumps(result))
 
-            # Request file from github
-            owner = "mongodb"
-            repo = "mongo"
-            fileName = args["file"][0]
-            url = "https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + args["file"][0]
-            http_client = tornado.httpclient.HTTPClient()
-            request = tornado.httpclient.HTTPRequest(url=url,
-                                                     user_agent="Maria's API Test")
-            try:
-                response = http_client.fetch(request)
-                responseDict = json.loads(response.body)
-                content = base64.b64decode(responseDict["content"])
-                fileContent = highlight(content, guess_lexer(content), CoverageFormatter())
-                self.render("templates/file.html", fileName=fileName, styleUrl=styleUrl, fileContent=fileContent, coveredLines=coveredLines, uncoveredLines=uncoveredLines)
+            else: 
+                # Request file from github
+                owner = "mongodb"
+                repo = "mongo"
+                fileName = args["file"][0]
+                url = "https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + args["file"][0]
+                http_client = tornado.httpclient.HTTPClient()
+                request = tornado.httpclient.HTTPRequest(url=url,
+                                                         user_agent="Maria's API Test")
+                try:
+                    response = http_client.fetch(request)
+                    responseDict = json.loads(response.body)
+                    content = base64.b64decode(responseDict["content"])
+                    fileContent = highlight(content, guess_lexer(content), CoverageFormatter())
+                    self.render("templates/file.html", fileName=fileName, styleUrl=styleUrl, fileContent=fileContent, coveredLines=coveredLines, uncoveredLines=uncoveredLines, dataUrl=dataUrl)
 
-            except tornado.httpclient.HTTPError as e:
-                print "Error: ", e
+                except tornado.httpclient.HTTPError as e:
+                    print "Error: ", e
     
-            http_client.close()
+                http_client.close()
                   
             print result
 

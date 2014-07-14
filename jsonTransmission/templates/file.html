@@ -8,11 +8,29 @@
     {{ fileContent }}
     </body>
     <script>
-        {% for line in coveredLines %}
-            document.getElementById("line" + {{ line }}).style.backgroundColor = "DCF2A5";
-        {% end %}
-        {% for line in  uncoveredLines %}
-            document.getElementById("line" + {{ line }}).style.backgroundColor = "F2A5A5";
-        {% end %}
+        var xmlHttp = null;
+        xmlHttp = new XMLHttpRequest();
+        xmlHttp.open("GET", "{{ dataUrl }}", false);
+        xmlHttp.send(null);
+        result = JSON.parse(xmlHttp.responseText);
+        var coveredLines = []
+        var uncoveredLines = []
+        for (i = 0, len = result["counts"].length; i < len; i++) {
+            if (result["counts"][i]["c"] > 0) {
+                coveredLines[coveredLines.length] = "line" + result["counts"][i]["l"].toString()
+            }
+            else {
+                uncoveredLines[uncoveredLines.length] = "line" + result["counts"][i]["l"].toString()
+            }
+        }
+
+        for (i = 0, len = coveredLines.length; i < len; i++) {
+            document.getElementById(coveredLines[i]).style.backgroundColor = "DCF2A5";
+        }
+
+        for (i = 0, len = uncoveredLines.length; i < len; i++) {
+            document.getElementById(uncoveredLines[i]).style.backgroundColor = "F2A5A5";
+        }
+
     </script>
 </html>
