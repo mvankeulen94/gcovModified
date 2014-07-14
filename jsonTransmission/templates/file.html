@@ -7,4 +7,12 @@
     {% autoescape None %}
     {{ fileContent }}
     </body>
+    <script>
+        {% for line in coveredLines %}
+            document.getElementById("line" + {{ line }}).style.backgroundColor = "DCF2A5";
+        {% end %}
+        {% for line in  uncoveredLines %}
+            document.getElementById("line" + {{ line }}).style.backgroundColor = "F2A5A5";
+        {% end %}
+    </script>
 </html>

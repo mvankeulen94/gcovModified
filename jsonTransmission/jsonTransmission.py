@@ -160,24 +160,8 @@ class DataHandler(tornado.web.RequestHandler):
             if not "file" in args:
                 self.write("\nError!\n")
                 return
-            owner = "mongodb"
-            repo = "mongo"
-            fileName = args["file"][0]
-            url = "https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + args["file"][0]
-            http_client = tornado.httpclient.HTTPClient()
-            request = tornado.httpclient.HTTPRequest(url=url,
-                                                     user_agent="Maria's API Test")
-            try:
-                response = http_client.fetch(request)
-                responseDict = json.loads(response.body)
-                content = base64.b64decode(responseDict["content"])
-                fileContent = highlight(content, guess_lexer(content), CoverageFormatter())
-                self.render("templates/file.html", fileName=fileName, styleUrl=styleUrl, fileContent=fileContent)
-
-            except tornado.httpclient.HTTPError as e:
-                print "Error: ", e
-    
-            http_client.close()
+            
+            # Generate line coverage results
             gitHash = args.get("gitHash")[0]
             buildID = args.get("buildID")[0]
             fileName = args.get("file")[0]
@@ -192,14 +176,38 @@ class DataHandler(tornado.web.RequestHandler):
             cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
             result = {}
             result["counts"] = []
-            executedLines = []
-            nonExecutedLines = []
+            coveredLines = []
+            uncoveredLines = []
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 if not "file" in result:
                     result["file"] = bsonobj["_id"]["file"]
                 result["counts"].append({"l": bsonobj["_id"]["line"], "c": bsonobj["count"]})
-            
+                if int(bsonobj["count"]) > 0:
+                    coveredLines.append(bsonobj["_id"]["line"])
+                else:
+                    uncoveredLines.append(bsonobj["_id"]["line"])
+
+            # Request file from github
+            owner = "mongodb"
+            repo = "mongo"
+            fileName = args["file"][0]
+            url = "https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + args["file"][0]
+            http_client = tornado.httpclient.HTTPClient()
+            request = tornado.httpclient.HTTPRequest(url=url,
+                                                     user_agent="Maria's API Test")
+            try:
+                response = http_client.fetch(request)
+                responseDict = json.loads(response.body)
+                content = base64.b64decode(responseDict["content"])
+                fileContent = highlight(content, guess_lexer(content), CoverageFormatter())
+                self.render("templates/file.html", fileName=fileName, styleUrl=styleUrl, fileContent=fileContent, coveredLines=coveredLines, uncoveredLines=uncoveredLines)
+
+            except tornado.httpclient.HTTPError as e:
+                print "Error: ", e
+    
+            http_client.close()
+                  
             print result
 
 
@@ -351,6 +359,7 @@ class CoverageFormatter(HtmlFormatter):
         for i, t in source:
             if i == 1:
                 num += 1
+                t = '<span id="count%s" style="display:block; width:7px;"> 000' % str(num) + '</span>' + t
                 t = '<span id="line%s">' % str(num) + t
                 t += '</span>'
             yield i, t
