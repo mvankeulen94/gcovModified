@@ -1,44 +1,51 @@
 <html>
-    <head>
-        <title>{{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</title>
-    </head>
-    <body>
-        <h1>Coverage Results For {{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</h1>
-        <h2>Summary</h2>
-        <p> 
-            {% if 'lineCount' in result %}
-            Total lines: {{ result['lineCount'] }} <br />
-            Lines covered: {{ result['lineCovCount'] }} <br />
-            Percent lines covered: {{ result['lineCovPercentage'] }} <br />
-            {% end %}
-        </p>
-        <p>
-            {% if 'funcCount' in result %} 
-            Total functions: {{ result['funcCount'] }} <br />
-            Functions covered: {{ result['funcCovCount'] }} <br />
-            Percent functions covered: {{ result['funcCovPercentage'] }} <br />
-            {% end %}
-        </p>
-        <h2>Coverage Results by Directory</h2>
-        <table>
-            <tr><td>Directory</td><td>Line Coverage</td><td>Functions</td>
-            {% for dirResult in dirResults %}
-            <tr>
-                <td><a href="{{ url }}?buildID={{ result['_id']['buildID'] }}&gitHash={{ result['_id']['gitHash'] }}&dir={{ url_escape(dirResult['_id']['dir']) }}">{{ dirResult['_id']['dir'] }}</a></td>
-                {% if 'lineCount' in dirResult %}
-                <td>{{ dirResult['lineCovPercentage'] }}%, 
-                    {{ dirResult['lineCovCount'] }}/{{ dirResult['lineCount'] }}</td>
-                {% else %}
-                <td>0.0%, 0/0</td>
-                {% end %}
-                {% if 'funcCount' in dirResult %}
-                <td>{{ dirResult['funcCovPercentage'] }}%, 
-                    {{ dirResult['funcCovCount'] }}/{{ dirResult['funcCount'] }}</td>
-                {% else %}
-                <td>0.0%, 0/0</td>
-                {% end %}
-            </tr> 
-            {% end %}
-        </table>
-    </body>
+ <head>
+   <title>{{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</title>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+ </head>
+ <body>
+  <div class="main">
+   <h1 class="page-header">Coverage Results for {{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</h1>
+   <div class="table-responsive">
+    <table class="table table-striped">
+     <thead>
+      <tr>
+      <th>Directory</th>
+      <th>Line Coverage</th>
+      <th>Line Coverage %</th>
+      <th>Function Coverage</th>
+      <th>Function Coverage %</th>
+      </tr>
+     </thead>
+     <tbody>
+      {% for dirResult in dirResults %}
+      <tr>
+       <td><a href="{{ url }}?buildID={{ result['_id']['buildID'] }}&gitHash={{ result['_id']['gitHash'] }}&dir={{ url_escape(dirResult['_id']['dir']) }}">{{ dirResult['_id']['dir'] }}</a></td>
+       {% if 'lineCount' in dirResult %}
+       <td>{{ dirResult['lineCovCount'] }}/{{ dirResult['lineCount'] }}</td>
+       <td>{{ dirResult['lineCovPercentage'] }}</td>
+       {% else %}
+       <td>0 / 0</td> 
+       <td>0.0</td>
+       {% end %}
+       {% if 'funcCount' in dirResult %}
+       <td>{{ dirResult['funcCovCount'] }}/{{ dirResult['funcCount'] }}</td>
+       <td>{{ dirResult['funcCovPercentage'] }}</td>
+       {% else %}
+       <td>0 / 0</td>
+       <td>0.0</td>
+       {% end %}
+      </tr> 
+      {% end %}
+     </tbody>
+    </table>
+   </div>
+ </body>
 </html>
