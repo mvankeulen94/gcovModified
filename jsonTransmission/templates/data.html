@@ -1,28 +1,49 @@
 <html>
-    <head>
-    <title>Coverage Data For {{ directory }}</title>
-    </head>
-    <body>
-        <h1>Coverage Results by File</h1>
-        <table>
-            <tr><td>File</td><td>Line Coverage</td><td>Functions</td>
-            {% for key in sorted(results.keys()) %}
-            <tr>
-                <td><a href="{{ url }}?buildID={{ buildID }}&gitHash={{ gitHash }}&file={{ url_escape(key) }}">{{ key }}</a></td>
-                {% if 'lineCount' in results[key] %}
-                <td>{{ results[key]['lineCovPercentage'] }}%, 
-                    {{ results[key]['lineCovCount'] }}/{{ results[key]['lineCount'] }}</td>
-                {% else %}
-                <td>0.0%, 0/0</td>
-                {% end %}
-                {% if 'funcCount' in results[key] %}
-                <td>{{ results[key]['funcCovPercentage'] }}%, 
-                    {{ results[key]['funcCovCount'] }}/{{ results[key]['funcCount'] }}</td>
-                {% else %}
-                <td>0.0%, 0/0</td>
-                {% end %}
-            </tr> 
-            {% end %}
-        </table>
+ <head>
+   <title>Coverage Data For {{ directory }}</title>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+ </head>
+ <body>
+  <div class="main">
+   <h1 class="page-header">Coverage Results for {{ directory }}</h1>
+   <div class="table-responsive">
+    <table class="table table-striped">
+     <thead>
+      <tr>
+      <th>File</th>
+      <th>Line Coverage</th>
+      <th>Line Coverage %</th>
+      <th>Function Coverage</th>
+      <th>Function Coverage %</th>
+      </tr>
+     </thead>
+     <tbody>
+      {% for key in sorted(results.keys()) %}
+      <tr>
+       <td><a href="{{ url }}?buildID={{ buildID }}&gitHash={{ gitHash }}&file={{ url_escape(key) }}">{{ key }}</a></td>
+       {% if 'lineCount' in results[key] %}
+       <td>{{ results[key]['lineCovCount'] }}/{{ results[key]['lineCount'] }}</td>
+       <td>{{ results[key]['lineCovPercentage'] }}</td>
+       {% else %}
+       <td>0 / 0</td>
+       <td>0.0</td>
+       {% end %}
+       {% if 'funcCount' in results[key] %}
+       <td>{{ results[key]['funcCovCount'] }}/{{ results[key]['funcCount'] }}</td>
+       <td>{{ results[key]['funcCovPercentage'] }}</td>
+       {% else %}
+       <td>0 / 0</td>
+       <td>0.0</td>
+       {% end %}
+      </tr> 
+      {% end %}
+     </table>
    </body>
 </html>

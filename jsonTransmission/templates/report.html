@@ -1,52 +1,53 @@
 <html>
-    <head>
-        <title>Coverage Summary Dock</title>
-           <!-- Latest compiled and minified CSS -->
-           <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+ <head>
+  <title>Coverage Summary Dock</title>
+   <!-- Latest compiled and minified CSS -->
+   <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
 
-           <!-- Optional theme -->
-           <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+   <!-- Optional theme -->
+   <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
 
-           <!-- Latest compiled and minified JavaScript -->
-           <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
-    </head>
-    <body>
-         <div class="main">
-               <h1 class="page-header">Summary</h1>
-                         <div class="table-responsive">
-                          <table class="table table-striped">
-                           <thead>
-                            <tr>
-                            <th>Git Commit</th>
-                            <th>Date</th>
-                            <th>Line Coverage</th>
-                            <th>Line Coverage %</th>
-                            <th>Function Coverage</th>
-                            <th>Function Coverage %</th>
-                            </tr>
-                           </thead>
-                           <tbody>
-                            {% for result in results %}
-                             <tr>
-                                 <td><a href="{{ url }}?buildID={{ result['_id']['buildID'] }}&gitHash={{ result['_id']['gitHash'] }}" data-toggle="tooltip" title="{{ result['_id']['buildID'] }}"> {{ result['_id']['gitHash'] }}</a></td>
-                              <td>{{ result['date'] }}</td>
-                              {% if 'lineCount' in result %}
-                               <td>{{ result['lineCount'] }} / {{ result['lineCovCount'] }}</td>
-                               <td>{{ result['lineCovPercentage'] }}</td>
-                              {% else %}
-                               <td> 0 / 0 </td><td>0</td>
-                              {% end %}
-                              {% if 'funcCount' in result %}
-                              <td>{{ result['funcCount'] }} / {{ result['funcCovCount'] }}</td>
-                              <td>{{ result['funcCovPercentage'] }}</td>
-                              {% else %}
-                               <td> 0 / 0 </td><td>0</td>
-                              {% end %}
-                             </tr>
-                            {% end %}
-                           </tbody>
-                          </table>
-                         </div>
-        </ul>
-    </body>
+   <!-- Latest compiled and minified JavaScript -->
+   <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+ </head>
+ <body>
+  <div class="main">
+   <h1 class="page-header">Summary</h1>
+   <div class="table-responsive">
+    <table class="table table-striped">
+     <thead>
+      <tr>
+       <th>Git Commit</th>
+       <th>Date</th>
+       <th>Line Coverage</th>
+       <th>Line Coverage %</th>
+       <th>Function Coverage</th>
+       <th>Function Coverage %</th>
+      </tr>
+     </thead>
+     <tbody>
+      {% for result in results %}
+      <tr>
+       <td><a href="{{ url }}?buildID={{ result['_id']['buildID'] }}&gitHash={{ result['_id']['gitHash'] }}" data-toggle="tooltip" title="{{ result['_id']['buildID'] }}"> {{ result['_id']['gitHash'] }}</a></td>
+       <td>{{ result['date'] }}</td>
+       {% if 'lineCount' in result %}
+       <td>{{ result['lineCount'] }} / {{ result['lineCovCount'] }}</td>
+       <td>{{ result['lineCovPercentage'] }}</td>
+       {% else %}
+       <td> 0 / 0 </td>
+       <td>0.0%</td>
+       {% end %}
+       {% if 'funcCount' in result %}
+       <td>{{ result['funcCount'] }} / {{ result['funcCovCount'] }}</td>
+       <td>{{ result['funcCovPercentage'] }}</td>
+       {% else %}
+       <td> 0 / 0 </td>
+       <td>0.0%</td>
+       {% end %}
+      </tr>
+      {% end %}
+     </tbody>
+    </table>
+   </div>
+  </body>
 </html>
