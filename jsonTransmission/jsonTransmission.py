@@ -25,6 +25,7 @@ from pygments.formatters import HtmlFormatter
 import pipelines
 
 import urllib
+import string
 
 
 class Application(tornado.web.Application):
@@ -160,27 +161,12 @@ class DataHandler(tornado.web.RequestHandler):
             if not "file" in args:
                 self.write("\nError!\n")
                 return
-            owner = "mongodb"
-            repo = "mongo"
-            fileName = args["file"][0]
-            url = "https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + args["file"][0]
-            http_client = tornado.httpclient.HTTPClient()
-            request = tornado.httpclient.HTTPRequest(url=url,
-                                                     user_agent="Maria's API Test")
-            try:
-                response = http_client.fetch(request)
-                responseDict = json.loads(response.body)
-                content = base64.b64decode(responseDict["content"])
-                fileContent = highlight(content, guess_lexer(content), CoverageFormatter())
-                self.render("templates/file.html", fileName=fileName, styleUrl=styleUrl, fileContent=fileContent)
-
-            except tornado.httpclient.HTTPError as e:
-                print "Error: ", e
-    
-            http_client.close()
+            
+            # Generate line coverage results
             gitHash = args.get("gitHash")[0]
             buildID = args.get("buildID")[0]
             fileName = args.get("file")[0]
+            dataUrl = self.request.full_url() + "&counts=true" # URL for requesting counts data
 
             if "testName" in args:
                 testName = args.get("testName")
@@ -191,16 +177,38 @@ class DataHandler(tornado.web.RequestHandler):
        
             cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
             result = {}
-            result["counts"] = []
-            executedLines = []
-            nonExecutedLines = []
+            result["counts"] = {}
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 if not "file" in result:
                     result["file"] = bsonobj["_id"]["file"]
-                result["counts"].append({"l": bsonobj["_id"]["line"], "c": bsonobj["count"]})
-            
-            print result
+                result["counts"][bsonobj["_id"]["line"]] =  bsonobj["count"]
+                        
+            if "counts" in args and args["counts"][0] == "true":
+                # Send only counts data to client
+                self.write(json.dumps(result))
+
+            else: 
+                # Request file from github
+                owner = "mongodb"
+                repo = "mongo"
+                fileName = args["file"][0]
+                url = "https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + args["file"][0]
+                http_client = tornado.httpclient.HTTPClient()
+                request = tornado.httpclient.HTTPRequest(url=url,
+                                                         user_agent="Maria's API Test")
+                try:
+                    response = http_client.fetch(request)
+                    responseDict = json.loads(response.body)
+                    content = base64.b64decode(responseDict["content"])
+                    fileContent = highlight(content, guess_lexer(content), CoverageFormatter())
+                    lineCount = string.count(content, "\n")
+                    self.render("templates/file.html", fileName=fileName, styleUrl=styleUrl, fileContent=fileContent, dataUrl=dataUrl, lineCount=lineCount)
+
+                except tornado.httpclient.HTTPError as e:
+                    print "Error: ", e
+    
+                http_client.close()
 
 
 class MetaHandler(tornado.web.RequestHandler):
@@ -340,7 +348,7 @@ class ReportHandler(tornado.web.RequestHandler):
 
 class CoverageFormatter(HtmlFormatter):
     def __init__(self):
-        HtmlFormatter.__init__(self, linenos="inline")
+        HtmlFormatter.__init__(self, linenos="table")
     
     def wrap(self, source, outfile):
         return self._wrap_code(source)

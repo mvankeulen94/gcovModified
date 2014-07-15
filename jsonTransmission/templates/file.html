@@ -7,4 +7,48 @@
     {% autoescape None %}
     {{ fileContent }}
     </body>
+    <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>            
+    <script>
+        var xmlHttp = null;
+        xmlHttp = new XMLHttpRequest();
+        xmlHttp.open("GET", "{{ dataUrl }}", false);
+        xmlHttp.send(null);
+        result = JSON.parse(xmlHttp.responseText);
+        var coveredLines = [];
+        var uncoveredLines = [];
+        for (key in result["counts"]) {
+            lineno = key;
+            if (result["counts"][key] > 0) {
+                coveredLines[coveredLines.length] = "line" + lineno;
+            }
+            else {
+                uncoveredLines[uncoveredLines.length] = "line" + lineno;
+            }
+        }
+
+        for (i = 0, len = coveredLines.length; i < len; i++) {
+            document.getElementById(coveredLines[i]).style.backgroundColor = "DCF2A5";
+        }
+
+        for (i = 0, len = uncoveredLines.length; i < len; i++) {
+            document.getElementById(uncoveredLines[i]).style.backgroundColor = "F2A5A5";
+        }
+        var countsString = "";
+        
+        for (i = 1, len = {{ lineCount }}; i <= len; i++) {
+            if (i.toString() in result["counts"]) {
+                countsString += result["counts"][i.toString()];
+                countsString += "\n";
+            }
+            else {
+                countsString += " \n";
+            }
+        }
+        $(document).ready(function(){
+                $('table').find('tr').each(function(){
+                    $(this).find('td').eq(0).before('<td class="linenos"><div class="linenodiv"><pre>' + countsString + '</pre></div></td>');
+                    });
+                });
+
+    </script>
 </html>
