@@ -182,7 +182,10 @@ class DataHandler(tornado.web.RequestHandler):
                 bsonobj = cursor.next_object()
                 if not "file" in result:
                     result["file"] = bsonobj["_id"]["file"]
-                result["counts"][bsonobj["_id"]["line"]] =  bsonobj["count"]
+                if not bsonobj["_id"]["line"] in result["counts"]:
+                    result["counts"][bsonobj["_id"]["line"]] = bsonobj["count"] 
+                else:
+                    result["counts"][bsonobj["_id"]["line"]] += bsonobj["count"]
                         
             if "counts" in args and args["counts"][0] == "true":
                 # Send only counts data to client
