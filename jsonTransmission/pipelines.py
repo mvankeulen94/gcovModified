@@ -74,10 +74,11 @@ function_pipeline = [
 			}
 		}
 	}
+
 ]
 
 line_pipeline = [
-	{
+        {
 		"$match" : {
 			"file" : re.compile("^src\/mongo"),
 			"gitHash" : "",
@@ -150,6 +151,7 @@ line_pipeline = [
 			}
 		}
 	}
+
 ]
 
 file_line_pipeline = [
@@ -179,7 +181,13 @@ file_line_pipeline = [
 				"$sum" : "$lc.ec"
 			}
 		}
-	}
+	},
+        {
+                "$sort" : {
+                        "_id.file": 1
+                }
+        }
+
 ]
 
 file_func_pipeline = [
@@ -209,5 +217,11 @@ file_func_pipeline = [
 				"$sum" : "$functions.ec"
 			}
 		}
-	}
+	},
+        {
+                "$sort" : {
+                        "_id.file": 1
+                }
+        }
+
 ]

@@ -340,7 +340,8 @@ class ReportHandler(tornado.web.RequestHandler):
                 metaResult = bsonobj
            
             query = {"_id.gitHash": gitHash, "_id.buildID": buildID}
-            cursor = self.application.covCollection.find(query)
+            cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
+
             
             # Get directory results
             while (yield cursor.fetch_next):
