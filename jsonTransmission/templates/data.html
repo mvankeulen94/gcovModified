@@ -6,7 +6,7 @@
         <h1>Coverage Results by File</h1>
         <table>
             <tr><td>File</td><td>Line Coverage</td><td>Functions</td>
-            {% for key in results.keys() %}
+            {% for key in sorted(results.keys()) %}
             <tr>
                 <td><a href="{{ url }}?buildID={{ buildID }}&gitHash={{ gitHash }}&file={{ url_escape(key) }}">{{ key }}</a></td>
                 {% if 'lineCount' in results[key] %}

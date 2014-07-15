@@ -182,7 +182,10 @@ class DataHandler(tornado.web.RequestHandler):
                 bsonobj = cursor.next_object()
                 if not "file" in result:
                     result["file"] = bsonobj["_id"]["file"]
-                result["counts"][bsonobj["_id"]["line"]] =  bsonobj["count"]
+                if not bsonobj["_id"]["line"] in result["counts"]:
+                    result["counts"][bsonobj["_id"]["line"]] = bsonobj["count"] 
+                else:
+                    result["counts"][bsonobj["_id"]["line"]] += bsonobj["count"]
                         
             if "counts" in args and args["counts"][0] == "true":
                 # Send only counts data to client
@@ -337,7 +340,8 @@ class ReportHandler(tornado.web.RequestHandler):
                 metaResult = bsonobj
            
             query = {"_id.gitHash": gitHash, "_id.buildID": buildID}
-            cursor = self.application.covCollection.find(query)
+            cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
+
             
             # Get directory results
             while (yield cursor.fetch_next):
