@@ -177,19 +177,13 @@ class DataHandler(tornado.web.RequestHandler):
        
             cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
             result = {}
-            result["counts"] = []
-            coveredLines = []
-            uncoveredLines = []
+            result["counts"] = {}
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 if not "file" in result:
                     result["file"] = bsonobj["_id"]["file"]
-                result["counts"].append({"l": bsonobj["_id"]["line"], "c": bsonobj["count"]})
-                if int(bsonobj["count"]) > 0:
-                    coveredLines.append(bsonobj["_id"]["line"])
-                else:
-                    uncoveredLines.append(bsonobj["_id"]["line"])
-            
+                result["counts"][bsonobj["_id"]["line"]] =  bsonobj["count"]
+                        
             if "counts" in args and args["counts"][0] == "true":
                 # Send only counts data to client
                 self.write(json.dumps(result))
@@ -215,8 +209,6 @@ class DataHandler(tornado.web.RequestHandler):
                     print "Error: ", e
     
                 http_client.close()
-                  
-            print result
 
 
 class MetaHandler(tornado.web.RequestHandler):
@@ -367,7 +359,6 @@ class CoverageFormatter(HtmlFormatter):
         for i, t in source:
             if i == 1:
                 num += 1
-                t = '<span id="count%s">' % str(num) + '</span>' + t
                 t = '<span id="line%s">' % str(num) + t
                 t += '</span>'
             yield i, t

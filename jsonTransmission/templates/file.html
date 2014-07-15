@@ -16,18 +16,14 @@
         result = JSON.parse(xmlHttp.responseText);
         var coveredLines = [];
         var uncoveredLines = [];
-        var executableLines = [];
-        for (i = 0, len = result["counts"].length; i < len; i++) {
-            lineno = result["counts"][i]["l"].toString();
-            lineCount = result["counts"][i]["c"].toString();
-            if (result["counts"][i]["c"] > 0) {
+        for (key in result["counts"]) {
+            lineno = key;
+            if (result["counts"][key] > 0) {
                 coveredLines[coveredLines.length] = "line" + lineno;
             }
             else {
                 uncoveredLines[uncoveredLines.length] = "line" + lineno;
             }
-            document.getElementById("count" + lineno).innerHTML = lineCount + " ";
-            executableLines[result["counts"][i]["l"]] = lineCount;
         }
 
         for (i = 0, len = coveredLines.length; i < len; i++) {
@@ -39,18 +35,18 @@
         }
         var countsString = "";
         
-        for (i = 0, len = {{ lineCount }}; i < len; i++) {
-            if (i.toString() in executableLines) {
-                console.log(executableLines[i.toString()]);
-                countsString += executableLines[i.toString()];
+        for (i = 1, len = {{ lineCount }}; i <= len; i++) {
+            if (i.toString() in result["counts"]) {
+                countsString += result["counts"][i.toString()];
+                countsString += "\n";
             }
             else {
-                countsString += " ";
+                countsString += " \n";
             }
         }
         $(document).ready(function(){
                 $('table').find('tr').each(function(){
-                    $(this).find('td').eq(0).after('<pre><td class="counts">' + '</td></pre>');
+                    $(this).find('td').eq(0).before('<td class="linenos"><div class="linenodiv"><pre>' + countsString + '</pre></div></td>');
                     });
                 });
 
