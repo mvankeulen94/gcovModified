@@ -412,15 +412,31 @@ class CompareHandler(tornado.web.RequestHandler):
                     dirEntry["lineCount2"] = bsonobj["lineCount"]
                     dirEntry["lineCovCount2"] = bsonobj["lineCovCount"]
                     dirEntry["lineCovPercentage2"] = bsonobj["lineCovPercentage"]
-                # If no data exists for this directory in build 2,
-                # set counts to 0.
                 else:
+                    results[bsonobj["_id"]["dir"]] = {}
+                    dirEntry = results[bsonobj["_id"]["dir"]]
                     dirEntry["lineCount2"] = bsonobj["lineCount"] 
                     dirEntry["lineCovCount2"] = bsonobj["lineCovCount"] 
                     dirEntry["lineCovPercentage2"] = bsonobj["lineCovPercentage"] 
-                # Determine coverage comparison
+            # Determine coverage comparison
+            for key in results.keys():
+                dirEntry = results[key]
 
-                # The two percentages are not equal
+                # Either lineCount1 or lineCount2 is missing
+                if not ("lineCount1" in dirEntry and "lineCount2" in dirEntry):
+                    if "lineCount1" in dirEntry:
+                        dirEntry["coverageComparison"] = "?"
+                        dirEntry["lineCount2"] = "N/A"
+                        dirEntry["lineCovCount2"] = "N/A"
+                        dirEntry["lineCovPercentage2"] = "N/A"
+                    else:
+                        dirEntry["coverageComparison"] = "?"
+                        dirEntry["lineCount1"] = "N/A"
+                        dirEntry["lineCovCount1"] = "N/A"
+                        dirEntry["lineCovPercentage1"] = "N/A"
+                    continue
+                
+                # lineCount1 and lineCount2 are present; do comparison
                 if dirEntry["lineCovPercentage1"] != dirEntry["lineCovPercentage2"]:
                     if dirEntry["lineCovPercentage1"] > dirEntry["lineCovPercentage2"]:
                         dirEntry["coverageComparison"] = "-" 
@@ -437,7 +453,7 @@ class CompareHandler(tornado.web.RequestHandler):
                         if dirEntry["lineCount1"] == dirEntry["lineCount2"]:
                             dirEntry["coverageComparison"] = " "
                         else:
-                            dirEntry["coverageComparison"] = "?"
+                            dirEntry["coverageComparison"] = "N"
 
             self.render("templates/compare.html", build1ID=build1ID, build2ID=build2ID, results=results)
 
