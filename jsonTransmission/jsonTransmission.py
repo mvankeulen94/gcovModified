@@ -309,25 +309,25 @@ class ReportHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def get(self):
         args = self.request.arguments
-        url = "" # Store URL for data hyperlink
+        urlBase = self.request.full_url()[:-len(self.request.uri)]
 
         if len(args) == 0:
             # Get git hashes and build IDs 
             cursor =  self.application.metaCollection.find()
             results = []
-            url = self.request.full_url()
+            dataUrl = urlBase + "/report"
+            compareUrl = urlBase + "/compare"
 
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 results.append(bsonobj)
 
-            self.render("templates/report.html", results=results, url=url)
+            self.render("templates/report.html", results=results, dataUrl=dataUrl, compareUrl=compareUrl)
         else:    
             if args.get("gitHash") == None or args.get("buildID") == None:
                 self.write("Error!\n")
                 return
-            url = self.request.full_url()[:-len(self.request.uri)]
-            url += "/data"
+            url = urlBase + "/data"
             gitHash = args.get("gitHash")[0]
             buildID = args.get("buildID")[0]
             query = {"_id": {"gitHash": gitHash, "buildID": buildID}}
@@ -374,7 +374,7 @@ class CompareHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
     def get(self):
-        args = self.request.arguments
+        args = self.request.arguments 
         if len(args) == 0:
             return
 
@@ -419,6 +419,8 @@ class CompareHandler(tornado.web.RequestHandler):
                     dirEntry["lineCovCount2"] = bsonobj["lineCovCount"] 
                     dirEntry["lineCovPercentage2"] = bsonobj["lineCovPercentage"] 
                 # Determine coverage comparison
+
+                # The two percentages are not equal
                 if dirEntry["lineCovPercentage1"] != dirEntry["lineCovPercentage2"]:
                     if dirEntry["lineCovPercentage1"] > dirEntry["lineCovPercentage2"]:
                         dirEntry["coverageComparison"] = "-" 
