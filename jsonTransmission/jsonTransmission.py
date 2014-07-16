@@ -52,6 +52,7 @@ class Application(tornado.web.Application):
         (r"/data", DataHandler),
         (r"/meta", MetaHandler),
         (r"/style", StyleHandler),
+        (r"/compare", CompareHandler),
         ],)
 
 
@@ -308,25 +309,25 @@ class ReportHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def get(self):
         args = self.request.arguments
-        url = "" # Store URL for data hyperlink
+        urlBase = self.request.full_url()[:-len(self.request.uri)]
 
         if len(args) == 0:
             # Get git hashes and build IDs 
             cursor =  self.application.metaCollection.find()
             results = []
-            url = self.request.full_url()
+            dataUrl = urlBase + "/report"
+            compareUrl = urlBase + "/compare"
 
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 results.append(bsonobj)
 
-            self.render("templates/report.html", results=results, url=url)
+            self.render("templates/report.html", results=results, dataUrl=dataUrl, compareUrl=compareUrl)
         else:    
             if args.get("gitHash") == None or args.get("buildID") == None:
                 self.write("Error!\n")
                 return
-            url = self.request.full_url()[:-len(self.request.uri)]
-            url += "/data"
+            url = urlBase + "/data"
             gitHash = args.get("gitHash")[0]
             buildID = args.get("buildID")[0]
             query = {"_id": {"gitHash": gitHash, "buildID": buildID}}
@@ -367,6 +368,86 @@ class CoverageFormatter(HtmlFormatter):
                 t += '</span>'
             yield i, t
         yield 0, '</pre></div>'
+
+
+class CompareHandler(tornado.web.RequestHandler):
+    @tornado.web.asynchronous
+    @gen.coroutine
+    def get(self):
+        args = self.request.arguments 
+        if len(args) == 0:
+            return
+
+        # Build comparison
+        if "buildID1" in args:
+            if not "buildID2" in args:
+                return
+            
+            results = {} 
+
+            # Get info for first build
+            build1ID = args["buildID1"][0]
+            query = {"_id.buildID": build1ID}
+            cursor =  self.application.covCollection.find(query)
+            url = self.request.full_url()
+
+            while (yield cursor.fetch_next):
+                bsonobj = cursor.next_object()
+                results[bsonobj["_id"]["dir"]] = {}
+                dirEntry = results[bsonobj["_id"]["dir"]]
+                dirEntry["lineCount1"] = bsonobj["lineCount"]
+                dirEntry["lineCovCount1"] = bsonobj["lineCovCount"]
+                dirEntry["lineCovPercentage1"] = bsonobj["lineCovPercentage"]
+
+            # Get info for second build
+            build2ID = args["buildID2"][0]
+            query = {"_id.buildID": build2ID}
+            cursor =  self.application.covCollection.find(query)
+            url = self.request.full_url()
+
+            while (yield cursor.fetch_next):
+                bsonobj = cursor.next_object()
+                if bsonobj["_id"]["dir"] in results:
+                    dirEntry = results[bsonobj["_id"]["dir"]]
+                    dirEntry["lineCount2"] = bsonobj["lineCount"]
+                    dirEntry["lineCovCount2"] = bsonobj["lineCovCount"]
+                    dirEntry["lineCovPercentage2"] = bsonobj["lineCovPercentage"]
+                # If no data exists for this directory in build 2,
+                # set counts to 0.
+                else:
+                    dirEntry["lineCount2"] = bsonobj["lineCount"] 
+                    dirEntry["lineCovCount2"] = bsonobj["lineCovCount"] 
+                    dirEntry["lineCovPercentage2"] = bsonobj["lineCovPercentage"] 
+                # Determine coverage comparison
+
+                # The two percentages are not equal
+                if dirEntry["lineCovPercentage1"] != dirEntry["lineCovPercentage2"]:
+                    if dirEntry["lineCovPercentage1"] > dirEntry["lineCovPercentage2"]:
+                        dirEntry["coverageComparison"] = "-" 
+                    else:
+                        dirEntry["coverageComparison"] = "+"
+
+                # The two percentages are equal
+                else:
+                    if dirEntry["lineCovPercentage1"] == 100:
+                        dirEntry["coverageComparison"] = " "
+
+                    # The two percentages are equal and not 100
+                    else:
+                        if dirEntry["lineCount1"] == dirEntry["lineCount2"]:
+                            dirEntry["coverageComparison"] = " "
+                        else:
+                            dirEntry["coverageComparison"] = "?"
+
+            self.render("templates/compare.html", build1ID=build1ID, build2ID=build2ID, results=results)
+
+
+        if not ("build1" in args and "build2" in args):
+            return
+        if not ("dir1" in args and "dir2" in args):
+            return
+        if not ("file1" in args and "file2" in args):
+            return
 
 
 class StyleHandler(tornado.web.RequestHandler):
