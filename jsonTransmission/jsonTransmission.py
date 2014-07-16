@@ -394,9 +394,10 @@ class CompareHandler(tornado.web.RequestHandler):
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 results[bsonobj["_id"]["dir"]] = {}
-                results[bsonobj["_id"]["dir"]]["lineCount1"] = bsonobj["lineCount"]
-                results[bsonobj["_id"]["dir"]]["lineCovCount1"] = bsonobj["lineCovCount"]
-                results[bsonobj["_id"]["dir"]]["lineCovPercentage1"] = bsonobj["lineCovPercentage"]
+                dirEntry = results[bsonobj["_id"]["dir"]]
+                dirEntry["lineCount1"] = bsonobj["lineCount"]
+                dirEntry["lineCovCount1"] = bsonobj["lineCovCount"]
+                dirEntry["lineCovPercentage1"] = bsonobj["lineCovPercentage"]
 
             # Get info for second build
             build2ID = args["buildID2"][0]
@@ -407,15 +408,34 @@ class CompareHandler(tornado.web.RequestHandler):
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 if bsonobj["_id"]["dir"] in results:
-                    results[bsonobj["_id"]["dir"]]["lineCount2"] = bsonobj["lineCount"]
-                    results[bsonobj["_id"]["dir"]]["lineCovCount2"] = bsonobj["lineCovCount"]
-                    results[bsonobj["_id"]["dir"]]["lineCovPercentage2"] = bsonobj["lineCovPercentage"]
+                    dirEntry = results[bsonobj["_id"]["dir"]]
+                    dirEntry["lineCount2"] = bsonobj["lineCount"]
+                    dirEntry["lineCovCount2"] = bsonobj["lineCovCount"]
+                    dirEntry["lineCovPercentage2"] = bsonobj["lineCovPercentage"]
                 # If no data exists for this directory in build 2,
                 # set counts to 0.
                 else:
-                    results[bsonobj["_id"]["dir"]]["lineCount2"] = 0 
-                    results[bsonobj["_id"]["dir"]]["lineCovCount2"] = 0 
-                    results[bsonobj["_id"]["dir"]]["lineCovPercentage2"] = 0.0 
+                    dirEntry["lineCount2"] = bsonobj["lineCount"] 
+                    dirEntry["lineCovCount2"] = bsonobj["lineCovCount"] 
+                    dirEntry["lineCovPercentage2"] = bsonobj["lineCovPercentage"] 
+                # Determine coverage comparison
+                if dirEntry["lineCovPercentage1"] != dirEntry["lineCovPercentage2"]:
+                    if dirEntry["lineCovPercentage1"] > dirEntry["lineCovPercentage2"]:
+                        dirEntry["coverageComparison"] = "-" 
+                    else:
+                        dirEntry["coverageComparison"] = "+"
+
+                # The two percentages are equal
+                else:
+                    if dirEntry["lineCovPercentage1"] == 100:
+                        dirEntry["coverageComparison"] = " "
+
+                    # The two percentages are equal and not 100
+                    else:
+                        if dirEntry["lineCount1"] == dirEntry["lineCount2"]:
+                            dirEntry["coverageComparison"] = " "
+                        else:
+                            dirEntry["coverageComparison"] = "?"
 
             self.render("templates/compare.html", build1ID=build1ID, build2ID=build2ID, results=results)
 

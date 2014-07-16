@@ -18,8 +18,8 @@
      <thead>
       <tr>
        <th> </th>
-       <th colspan=3>Build A</th>
-       <th colspan=3>Build B</th>
+       <th colspan=3 data-toggle="tooltip" title="{{ build1ID }}" >Build A</th>
+       <th colspan=3 data-toggle="tooltip" title="{{ build2ID }}">Build B</th>
        <th> </th>
       </tr>
       <tr>
@@ -35,16 +35,18 @@
      </thead>
      <tbody>
       {% for key in sorted(results.keys()) %}
-      <tr>
-       <td>{{ key }}</td>
-       <td>{{ results[key]["lineCount1"] }}</td>
-       <td>{{ results[key]["lineCovCount1"] }}</td>
-       <td>{{ results[key]["lineCovPercentage1"] }}</td>
-       <td>{{ results[key]["lineCount2"] }}</td>
-       <td>{{ results[key]["lineCovCount2"] }}</td>
-       <td>{{ results[key]["lineCovPercentage2"] }}</td>
-       <td>+</td>
-      </tr>
+       {% if "lineCount1" in results[key] and "lineCount2" in results[key] %}
+        <tr>
+         <td>{{ key }}</td>
+         <td>{{ results[key]["lineCount1"] }}</td>
+         <td>{{ results[key]["lineCovCount1"] }}</td>
+         <td>{{ results[key]["lineCovPercentage1"] }}</td>
+         <td>{{ results[key]["lineCount2"] }}</td>
+         <td>{{ results[key]["lineCovCount2"] }}</td>
+         <td>{{ results[key]["lineCovPercentage2"] }}</td>
+         <td>{{ results[key]["coverageComparison"] }}</td>
+        </tr>
+       {% end %}
       {% end %}
      </tbody>
     </table>
