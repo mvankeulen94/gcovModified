@@ -35,18 +35,16 @@
      </thead>
      <tbody>
       {% for key in sorted(results.keys()) %}
-       {% if "lineCount1" in results[key] and "lineCount2" in results[key] %}
-        <tr>
-         <td>{{ key }}</td>
-         <td>{{ results[key]["lineCount1"] }}</td>
-         <td>{{ results[key]["lineCovCount1"] }}</td>
-         <td>{{ results[key]["lineCovPercentage1"] }}</td>
-         <td>{{ results[key]["lineCount2"] }}</td>
-         <td>{{ results[key]["lineCovCount2"] }}</td>
-         <td>{{ results[key]["lineCovPercentage2"] }}</td>
-         <td>{{ results[key]["coverageComparison"] }}</td>
-        </tr>
-       {% end %}
+       <tr>
+        <td>{{ key }}</td>
+        <td>{{ results[key]["lineCount1"] }}</td>
+        <td>{{ results[key]["lineCovCount1"] }}</td>
+        <td>{{ results[key]["lineCovPercentage1"] }}</td>
+        <td>{{ results[key]["lineCount2"] }}</td>
+        <td>{{ results[key]["lineCovCount2"] }}</td>
+        <td>{{ results[key]["lineCovPercentage2"] }}</td>
+        <td>{{ results[key]["coverageComparison"] }}</td>
+       </tr>
       {% end %}
      </tbody>
     </table>
