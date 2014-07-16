@@ -1,0 +1,53 @@
+<html>
+ <head>
+   <title>{{ build1ID }} vs. {{ build2ID }}</title>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+ </head>
+ <body>
+  <div class="main">
+   <h1 class="page-header">{{ build1ID }} vs. {{ build2ID }}</h1>
+   <div class="table-responsive">
+    <table class="table table-striped">
+     <thead>
+      <tr>
+       <th> </th>
+       <th colspan=3>Build A</th>
+       <th colspan=3>Build B</th>
+       <th> </th>
+      </tr>
+      <tr>
+       <th>Directory</th>
+       <th>Lines</th>
+       <th>Covered</th>
+       <th>Percentage</th>
+       <th>Lines</th>
+       <th>Covered</th>
+       <th>Percentage</th>
+       <th>Coverage Difference</th>
+      </tr>
+     </thead>
+     <tbody>
+      {% for key in sorted(results.keys()) %}
+      <tr>
+       <td>{{ key }}</td>
+       <td>{{ results[key]["lineCount1"] }}</td>
+       <td>{{ results[key]["lineCovCount1"] }}</td>
+       <td>{{ results[key]["lineCovPercentage1"] }}</td>
+       <td>{{ results[key]["lineCount2"] }}</td>
+       <td>{{ results[key]["lineCovCount2"] }}</td>
+       <td>{{ results[key]["lineCovPercentage2"] }}</td>
+       <td>+</td>
+      </tr>
+      {% end %}
+     </tbody>
+    </table>
+   </div>
+ </body>
+</html>
