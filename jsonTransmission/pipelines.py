@@ -225,3 +225,39 @@ file_func_pipeline = [
         }
 
 ]
+
+file_comp_pipeline = [
+	{
+		"$match" : {
+			"dir" : "", 
+			"buildID" : "" 
+		}
+	},
+	{
+		"$project" : {
+			"file" : 1,
+			"lc" : 1
+		}
+	},
+	{
+		"$unwind" : "$lc"
+	},
+	{
+		"$group" : {
+			"_id" : {
+				"file" : "$file",
+				"line" : "$lc.ln"
+			},
+			"count" : {
+				"$sum" : "$lc.ec"
+			}
+		}
+	},
+        {
+                "$sort" : {
+                        "_id.file": 1
+                }
+        }
+
+]
+

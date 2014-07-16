@@ -382,6 +382,19 @@ class CompareHandler(tornado.web.RequestHandler):
         if "buildID1" in args:
             if not "buildID2" in args:
                 return
+
+            # Directory comparison
+            if "dir" in args:
+                results = {}
+                buildIDs = [args["buildID1"][0], args["buildID2"][0]]
+                directory = urllib.unquote(args.get("dir")[0])
+                self.getFileComparisonData(buildIDs, directory, results)
+                url = self.request.full_url()
+                # Add coverage comparison data
+                self.addCoverageComparison(results)
+
+                self.render("templates/dirCompare.html", buildIDs=buildIDs, results=results)
+                return
             
             results = {} 
 
@@ -418,53 +431,83 @@ class CompareHandler(tornado.web.RequestHandler):
                     dirEntry["lineCount2"] = bsonobj["lineCount"] 
                     dirEntry["lineCovCount2"] = bsonobj["lineCovCount"] 
                     dirEntry["lineCovPercentage2"] = bsonobj["lineCovPercentage"] 
-            # Determine coverage comparison
-            for key in results.keys():
-                dirEntry = results[key]
+            # Add coverage comparison data
+            self.addCoverageComparison(results)
 
-                # Either lineCount1 or lineCount2 is missing
-                if not ("lineCount1" in dirEntry and "lineCount2" in dirEntry):
-                    if "lineCount1" in dirEntry:
-                        dirEntry["coverageComparison"] = "?"
-                        dirEntry["lineCount2"] = "N/A"
-                        dirEntry["lineCovCount2"] = "N/A"
-                        dirEntry["lineCovPercentage2"] = "N/A"
-                    else:
-                        dirEntry["coverageComparison"] = "?"
-                        dirEntry["lineCount1"] = "N/A"
-                        dirEntry["lineCovCount1"] = "N/A"
-                        dirEntry["lineCovPercentage1"] = "N/A"
-                    continue
-                
-                # lineCount1 and lineCount2 are present; do comparison
-                if dirEntry["lineCovPercentage1"] != dirEntry["lineCovPercentage2"]:
-                    if dirEntry["lineCovPercentage1"] > dirEntry["lineCovPercentage2"]:
-                        dirEntry["coverageComparison"] = "-" 
-                    else:
-                        dirEntry["coverageComparison"] = "+"
-
-                # The two percentages are equal
-                else:
-                    if dirEntry["lineCovPercentage1"] == 100:
-                        dirEntry["coverageComparison"] = " "
-
-                    # The two percentages are equal and not 100
-                    else:
-                        if dirEntry["lineCount1"] == dirEntry["lineCount2"]:
-                            dirEntry["coverageComparison"] = " "
-                        else:
-                            dirEntry["coverageComparison"] = "N"
-
-            self.render("templates/compare.html", build1ID=build1ID, build2ID=build2ID, results=results)
-
-
-        if not ("build1" in args and "build2" in args):
-            return
-        if not ("dir1" in args and "dir2" in args):
-            return
+            self.render("templates/buildCompare.html", build1ID=build1ID, build2ID=build2ID, results=results)
+        
+           
         if not ("file1" in args and "file2" in args):
             return
 
+    def addCoverageComparison(self, results):
+        """Add coverage comparison data to results."""
+        for key in results.keys():
+            entry = results[key]
+
+            # Either lineCount1 or lineCount2 is missing
+            if not ("lineCount1" in entry and "lineCount2" in entry):
+                if "lineCount1" in entry:
+                    entry["coverageComparison"] = "?"
+                    entry["lineCount2"] = "N/A"
+                    entry["lineCovCount2"] = "N/A"
+                    entry["lineCovPercentage2"] = "N/A"
+                else:
+                    entry["coverageComparison"] = "?"
+                    entry["lineCount1"] = "N/A"
+                    entry["lineCovCount1"] = "N/A"
+                    entry["lineCovPercentage1"] = "N/A"
+                continue
+            
+            # lineCount1 and lineCount2 are present; do comparison
+            if entry["lineCovPercentage1"] != entry["lineCovPercentage2"]:
+                if entry["lineCovPercentage1"] > entry["lineCovPercentage2"]:
+                    entry["coverageComparison"] = "-" 
+                else:
+                    entry["coverageComparison"] = "+"
+
+            # The two percentages are equal
+            else:
+                if entry["lineCovPercentage1"] == 100:
+                    entry["coverageComparison"] = " "
+
+                # The two percentages are equal and not 100
+                else:
+                    if entry["lineCount1"] == entry["lineCount2"]:
+                        entry["coverageComparison"] = " "
+                    else:
+                        entry["coverageComparison"] = "N"
+
+    def getFileComparisonData(self, buildIDs, directory, results):
+        """Return coverage comparison data for directory between buildIDs."""
+        for i in range(len(buildIDs)):
+            # Fill pipeline with build/directory info
+            pipelines.file_comp_pipeline[0]["$match"]["buildID"] = buildIDs[i]
+            pipelines.file_comp_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+    
+            # Get line results for first directory
+            cursor = yield self.application.collection.aggregate(pipelines.file_comp_pipeline, cursor={})
+            while (yield cursor.fetch_next):
+                bsonobj = cursor.next_object()
+                amountAdded = 0
+                if bsonobj["count"] != 0:
+                    amountAdded = 1
+    
+                # Check if there exists an entry for this file
+                if bsonobj["_id"]["file"] in results:
+                    results[bsonobj["_id"]["file"]]["lineCovCount" + str(i+1)]+= amountAdded
+                    results[bsonobj["_id"]["file"]]["lineCount" + str(i+1)] += 1
+        
+                # Otherwise, create a new entry
+                else:
+                    results[bsonobj["_id"]["file"]] = {}
+                    results[bsonobj["_id"]["file"]]["lineCovCount" + str(i+1)] = amountAdded
+                    results[bsonobj["_id"]["file"]]["lineCount" + str(i+1)] = 1
+        
+                # Add line and function coverage percentage data
+                for key in results.keys():
+                    print "HI!"
+                    results[key]["lineCovPercentage" + str(i+1)] = round(float(results[key]["lineCovCount" + str(i+1)])/results[key]["lineCount" + str(i+1)] * 100, 2)
 
 class StyleHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
