@@ -17,9 +17,7 @@ import tornado.httpclient
 import base64
 
 from pygments import highlight
-from pygments.lexers import PythonLexer
-from pygments.lexers import CLexer
-from pygments.lexers import guess_lexer
+from pygments.lexers import CppLexer
 from pygments.formatters import HtmlFormatter
 
 import pipelines
@@ -206,7 +204,7 @@ class DataHandler(tornado.web.RequestHandler):
                     response = http_client.fetch(request)
                     responseDict = json.loads(response.body)
                     content = base64.b64decode(responseDict["content"])
-                    fileContent = highlight(content, guess_lexer(content), CoverageFormatter())
+                    fileContent = highlight(content, CppLexer(), CoverageFormatter())
                     lineCount = string.count(content, "\n")
                     self.render("templates/file.html", fileName=fileName, styleUrl=styleUrl, fileContent=fileContent, dataUrl=dataUrl, lineCount=lineCount)
 
