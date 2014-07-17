@@ -197,7 +197,8 @@ class DataHandler(tornado.web.RequestHandler):
                 owner = "mongodb"
                 repo = "mongo"
                 fileName = args["file"][0]
-                url = "https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + args["file"][0]
+                url = ("https://api.github.com/repos/" + owner + "/" + repo + 
+                        "/contents/" + args["file"][0] + "?ref=" + gitHash)
                 http_client = tornado.httpclient.HTTPClient()
                 request = tornado.httpclient.HTTPRequest(url=url,
                                                          user_agent="Maria's API Test")
