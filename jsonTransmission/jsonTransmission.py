@@ -389,40 +389,7 @@ class CompareHandler(tornado.web.RequestHandler):
                 buildID1 = buildIDs[0]
                 buildID2 = buildIDs[1]
                 directory = urllib.unquote(args.get("dir")[0])
-
-                for i in range(len(buildIDs)):
-                    # Fill pipeline with build/directory info
-                    pipelines.file_comp_pipeline[0]["$match"]["buildID"] = buildIDs[i]
-                    pipelines.file_comp_pipeline[0]["$match"]["dir"] = directory
-           
-                    # Get line results for first directory
-                    cursor = yield self.application.collection.aggregate(pipelines.file_comp_pipeline, cursor={})
-                    while (yield cursor.fetch_next):
-                        bsonobj = cursor.next_object()
-                        amountAdded = 0
-                        if bsonobj["count"] != 0:
-                            amountAdded = 1
-                    
-                        # Check if there exists an entry for this file
-                        if bsonobj["_id"]["file"] in results:
-                            if "lineCovCount" + str(i+1) in results[bsonobj["_id"]["file"]]:
-                                results[bsonobj["_id"]["file"]]["lineCovCount" + str(i+1)]+= amountAdded
-                                results[bsonobj["_id"]["file"]]["lineCount" + str(i+1)] += 1
-                            else:
-                                results[bsonobj["_id"]["file"]]["lineCovCount" + str(i+1)] = amountAdded
-                                results[bsonobj["_id"]["file"]]["lineCount" + str(i+1)] = 1
-                    
-                        # Otherwise, create a new entry
-                        else:
-                            results[bsonobj["_id"]["file"]] = {}
-                            results[bsonobj["_id"]["file"]]["lineCovCount" + str(i+1)] = amountAdded
-                            results[bsonobj["_id"]["file"]]["lineCount" + str(i+1)] = 1
-                    
-                        # Add line and function coverage percentage data
-                        for key in results.keys():
-                            if "lineCovCount" + str(i+1) in results[key]:
-                                results[key]["lineCovPercentage" + str(i+1)] = round(float(results[key]["lineCovCount" + str(i+1)])/results[key]["lineCount" + str(i+1)] * 100, 2)
-
+                results = yield self.getFileComparisonData(buildIDs, directory)
 
                 url = self.request.full_url()
 
@@ -478,8 +445,44 @@ class CompareHandler(tornado.web.RequestHandler):
     
                 self.render("templates/buildCompare.html", build1ID=build1ID, 
                             build2ID=build2ID, results=results, urlBase=urlBase)
-            
-               
+    
+    @gen.coroutine            
+    def getFileComparisonData(self, buildIDs, directory):           
+        results = {}
+        for i in range(len(buildIDs)):
+            # Fill pipeline with build/directory info
+            pipelines.file_comp_pipeline[0]["$match"]["buildID"] = buildIDs[i]
+            pipelines.file_comp_pipeline[0]["$match"]["dir"] = directory
+           
+            # Get line results for first directory
+            cursor = yield self.application.collection.aggregate(pipelines.file_comp_pipeline, cursor={})
+            while (yield cursor.fetch_next):
+                bsonobj = cursor.next_object()
+                amountAdded = 0
+                if bsonobj["count"] != 0:
+                    amountAdded = 1
+                    
+                # Check if there exists an entry for this file
+                if bsonobj["_id"]["file"] in results:
+                    if "lineCovCount" + str(i+1) in results[bsonobj["_id"]["file"]]:
+                        results[bsonobj["_id"]["file"]]["lineCovCount" + str(i+1)]+= amountAdded
+                        results[bsonobj["_id"]["file"]]["lineCount" + str(i+1)] += 1
+                    else:
+                        results[bsonobj["_id"]["file"]]["lineCovCount" + str(i+1)] = amountAdded
+                        results[bsonobj["_id"]["file"]]["lineCount" + str(i+1)] = 1
+                    
+                # Otherwise, create a new entry
+                else:
+                    results[bsonobj["_id"]["file"]] = {}
+                    results[bsonobj["_id"]["file"]]["lineCovCount" + str(i+1)] = amountAdded
+                    results[bsonobj["_id"]["file"]]["lineCount" + str(i+1)] = 1
+                    
+            # Add line and function coverage percentage data
+            for key in results.keys():
+                if "lineCovCount" + str(i+1) in results[key]:
+                    results[key]["lineCovPercentage" + str(i+1)] = round(float(results[key]["lineCovCount" + str(i+1)])/results[key]["lineCount" + str(i+1)] * 100, 2)
+        raise gen.Return(results)
+
     def addCoverageComparison(self, results):
         """Add coverage comparison data to results."""
         for key in results.keys():
