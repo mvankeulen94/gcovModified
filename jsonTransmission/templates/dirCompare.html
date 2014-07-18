@@ -1,20 +1,10 @@
-<html>
- <head>
+{% extends "tableLayout.html" %} 
+{% block header %}
    <title>
        {{ buildID1 }} vs. {{ buildID2 }}
    </title>
-    <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
-
-    <!-- Optional theme -->
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
-
-   <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>            
-
-    <!-- Latest compiled and minified JavaScript -->
-    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
- </head>
- <body>
+{% end %}
+{% block body %}
   <div class="main">
    <h1 class="page-header">
        {{ buildID1 }} vs. {{ buildID2 }}, directory: {{ directory }}
@@ -55,5 +45,4 @@
      </tbody>
     </table>
    </div>
- </body>
-</html>
+{% end %}
