@@ -1,18 +1,18 @@
 <html>
  <head>
- <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>            
-  <script src="/static/mongostrap.min.js"></script>
+   
+  <!-- Latest compiled and minified JavaScript -->
   <link rel="stylesheet" href="/static/mongostrap.min.css">
-<script>
-$(window).resize(function () { 
-            $('body').css('padding-top', parseInt($('#nav').css("height"))+10);
-            });
+  <script>
+     $(window).resize(function () { 
+        $('body').css('padding-top', parseInt($('#nav').css("height"))+10);
+        });
 
-$(window).load(function () { 
-            $('body').css('padding-top', parseInt($('#nav').css("height"))+10);        
-            });
-</script>
+     $(window).load(function () { 
+        $('body').css('padding-top', parseInt($('#nav').css("height"))+10);        
+        });
+  </script>
   {% block header %}{% end %}
  </head>
  <body>
@@ -28,8 +28,11 @@ $(window).load(function () {
          </button>
      </div>
  </div>
- <div class="container">
- {% block body %}{% end %}
+ <div class="container-fluid">
+     <div class="span12">
+         {% block body %}{% end %}
+     </div>
  </div>
  </body>
+ {% block footer %}{% end %}
 </html>

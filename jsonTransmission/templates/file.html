@@ -1,17 +1,17 @@
-<html>
-    <head>
+{% extends "fileLayout.html" %}
+{% block header %}
         <title> Coverage Data for {{ fileName }} </title>
-        <link rel="stylesheet" type="text/css" href="{{ styleUrl }}">
-    </head>
-    <body>
+        <link rel="stylesheet" type="text/css" href="/style">
+{% end %}
+{% block body %}
     {% autoescape None %}
     {{ fileContent }}
-    </body>
-    <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>            
+{% end %}
+{% block footer %}
     <script>
         var xmlHttp = null;
         xmlHttp = new XMLHttpRequest();
-        xmlHttp.open("GET", "{{ dataUrl }}", false);
+        xmlHttp.open("GET", "/data?buildID={{ buildID }}&gitHash={{ gitHash }}&file={{ fileName }}&counts=true", false);
         xmlHttp.send(null);
         result = JSON.parse(xmlHttp.responseText);
         var coveredLines = [];
@@ -46,9 +46,9 @@
         }
         $(document).ready(function(){
                 $('table').find('tr').each(function(){
-                    $(this).find('td').eq(0).before('<td class="linenos" style="background-color: #F8F8F8;"><div class="linenodiv"><pre>' + countsString + '</pre></div></td>');
+                    $(this).find('td').eq(0).before('<td class="linenos"><div class="linenodiv"><pre>' + countsString + '</pre></div></td>');
                     });
                 });
 
     </script>
-</html>
+{% end %}
