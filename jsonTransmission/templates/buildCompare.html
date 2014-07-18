@@ -20,16 +20,20 @@
        <th>Directory</th>
        <th>Lines</th>
        <th>Covered</th>
-       <th>Line Coverage %</th>
+       <th>Coverage %</th>
        <th>Lines</th>
        <th>Covered</th>
-       <th>Line Coverage %</th>
+       <th>Coverage %</th>
        <th>Coverage Difference</th>
       </tr>
      </thead>
      <tbody>
       {% for key in sorted(results.keys()) %}
+       {% if "highlight" in results[key] %}
+       <tr class="{{ results[key]["highlight"] }}">
+       {% else %}
        <tr>
+       {% end %}
            <td><a href="/compare?buildID1={{ buildID1 }}&buildID2={{ buildID2 }}&dir={{url_escape(key)}}">{{ key }}</a></td>
         <td>{{ results[key]["lineCount1"] }}</td>
         <td>{{ results[key]["lineCovCount1"] }}</td>
