@@ -3,8 +3,8 @@
     <title>{{ buildID1 }} vs. {{ buildID2 }}</title>
 {% end %}
 {% block body %}
-  <div class="main">
-   <h1 class="page-header">{{ buildID1 }} vs. {{ buildID2 }}</h1>
+  <div class="starter-template">
+      <h3><br><br>{{ buildID1 }} vs. {{ buildID2 }}</h3>
    <div class="table-responsive">
     <table class="table table-striped">
      <thead>
@@ -28,7 +28,7 @@
      <tbody>
       {% for key in sorted(results.keys()) %}
        <tr>
-        <td><a href="{{ urlBase }}&dir={{url_escape(key)}}">{{ key }}</a></td>
+           <td><a href="/compare?buildID1={{ buildID1 }}&buildID2={{ buildID2 }}&dir={{url_escape(key)}}">{{ key }}</a></td>
         <td>{{ results[key]["lineCount1"] }}</td>
         <td>{{ results[key]["lineCovCount1"] }}</td>
         <td>{{ results[key]["lineCovPercentage1"] }}</td>

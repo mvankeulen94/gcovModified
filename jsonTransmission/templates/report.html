@@ -12,11 +12,11 @@
 {% end %}
 {% block body %}
   <div class="main">
-   <h1 class="page-header">Code Coverage Home</h1>
+      <h3>Code Coverage Home</h3>
    <button class="btn btn-default" id="build-display-toggle">Build Comparison</button>
    <div id="build-comparison">
     <h2>Build Comparison</h2>
-    <form action="{{ compareUrl }}" method="get">
+    <form action="/compare" method="get">
      <div class="table-responsive">
       <table class="table table-striped">
        <thead>
@@ -70,7 +70,7 @@
     <tbody>
      {% for result in results %}
      <tr>
-      <td><a href="{{ dataUrl }}?buildID={{ result['_id']['buildID'] }}&gitHash={{ result['_id']['gitHash'] }}" data-toggle="tooltip" title="{{ result['_id']['buildID'] }}"> {{ result['_id']['gitHash'] }}</a></td>
+      <td><a href="/report?buildID={{ result['_id']['buildID'] }}&gitHash={{ result['_id']['gitHash'] }}" data-toggle="tooltip" title="{{ result['_id']['buildID'] }}"> {{ result['_id']['gitHash'] }}</a></td>
       <td>{{ result['date'] }}</td>
       {% if 'lineCount' in result %}
       <td>{{ result['lineCount'] }} / {{ result['lineCovCount'] }}</td>

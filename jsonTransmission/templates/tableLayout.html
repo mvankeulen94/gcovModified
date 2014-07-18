@@ -10,9 +10,25 @@
    
   <!-- Latest compiled and minified JavaScript -->
   <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+  <script src="/static/mongostrap.min.js"></script>
+  <link rel="stylesheet" href="/static/mongostrap.min.css">
   {% block header %}{% end %}
  </head>
  <body>
+ <div id="nav" class="navbar navbar-inverse navbar-fixed-top">
+
+     <div class="navbar-header">
+         <a class="navbar-brand" href="/report">MongoDB Code Coverage</a>
+         <button type="button" class="navbar-toggle" data-toggle="collapse" 
+             data-target="#navbar-collapse-content">
+             <span class="icon-bar"></span>
+             <span class="icon-bar"></span>
+             <span class="icon-bar"></span>
+         </button>
+     </div>
+ </div>
+ <div class="container">
  {% block body %}{% end %}
+ </div>
  </body>
 </html>

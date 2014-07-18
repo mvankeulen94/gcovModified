@@ -51,6 +51,8 @@ class Application(tornado.web.Application):
         (r"/meta", MetaHandler),
         (r"/style", StyleHandler),
         (r"/compare", CompareHandler),
+        (r"/static/(.*)", tornado.web.StaticFileHandler, 
+         {"path": "static/"}),
         ],)
 
 
@@ -77,8 +79,6 @@ class DataHandler(tornado.web.RequestHandler):
         if len(args) == 0:
             self.write("\nError!\n")
 
-        url = self.request.full_url()[:-(len(self.request.query)+1)]
-        styleUrl = self.request.full_url()[:-len(self.request.uri)] + "/style"
         query = {}
         cursor = None # Cursor with which to traverse query results
         result = None # Dictionary to store query result
@@ -154,7 +154,7 @@ class DataHandler(tornado.web.RequestHandler):
                 if "funcCount" in results[key]:
                     results[key]["funcCovPercentage"] = round(float(results[key]["funcCovCount"])/results[key]["funcCount"] * 100, 2)
 
-            self.render("templates/data.html", results=results, url=url, directory=directory, gitHash=gitHash, buildID=buildID)
+            self.render("templates/data.html", results=results, directory=directory, gitHash=gitHash, buildID=buildID)
 
         else:
             if not "file" in args:
@@ -165,7 +165,6 @@ class DataHandler(tornado.web.RequestHandler):
             gitHash = args.get("gitHash")[0]
             buildID = args.get("buildID")[0]
             fileName = args.get("file")[0]
-            dataUrl = self.request.full_url() + "&counts=true" # URL for requesting counts data
 
             if "testName" in args:
                 testName = args.get("testName")
@@ -206,7 +205,7 @@ class DataHandler(tornado.web.RequestHandler):
                     content = base64.b64decode(responseDict["content"])
                     fileContent = highlight(content, CppLexer(), CoverageFormatter())
                     lineCount = string.count(content, "\n")
-                    self.render("templates/file.html", fileName=fileName, styleUrl=styleUrl, fileContent=fileContent, dataUrl=dataUrl, lineCount=lineCount)
+                    self.render("templates/file.html", buildID=buildID, gitHash=gitHash, fileName=fileName, fileContent=fileContent, lineCount=lineCount)
 
                 except tornado.httpclient.HTTPError as e:
                     print "Error: ", e
@@ -308,25 +307,21 @@ class ReportHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def get(self):
         args = self.request.arguments
-        urlBase = self.request.full_url()[:-len(self.request.uri)]
 
         if len(args) == 0:
             # Get git hashes and build IDs 
             cursor =  self.application.metaCollection.find()
             results = []
-            dataUrl = urlBase + "/report"
-            compareUrl = urlBase + "/compare"
 
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 results.append(bsonobj)
 
-            self.render("templates/report.html", results=results, dataUrl=dataUrl, compareUrl=compareUrl)
+            self.render("templates/report.html", results=results)
         else:    
             if args.get("gitHash") == None or args.get("buildID") == None:
                 self.write("Error!\n")
                 return
-            url = urlBase + "/data"
             gitHash = args.get("gitHash")[0]
             buildID = args.get("buildID")[0]
             query = {"_id": {"gitHash": gitHash, "buildID": buildID}}
@@ -347,7 +342,7 @@ class ReportHandler(tornado.web.RequestHandler):
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 dirResults.append(bsonobj)
-            self.render("templates/directory.html", result=metaResult, dirResults=dirResults, url=url)
+            self.render("templates/directory.html", result=metaResult, dirResults=dirResults)
 
 
 class CoverageFormatter(HtmlFormatter):
@@ -402,15 +397,12 @@ class CompareHandler(tornado.web.RequestHandler):
            
             # Build comparison
             else:
-                urlBase = (self.request.full_url()[:-len(self.request.uri)] + 
-                          "/compare?buildID1=" + buildID1 + "&buildID2=" + buildID2)
-    
                 # Get coverage comparison data
                 results = yield self.getComparisonData(buildIDs)
                 self.addCoverageComparison(results)
     
                 self.render("templates/buildCompare.html", buildID1=buildID1, 
-                            buildID2=buildID2, results=results, urlBase=urlBase)
+                            buildID2=buildID2, results=results)
     
     @gen.coroutine            
     def getComparisonData(self, buildIDs, **kwargs):           

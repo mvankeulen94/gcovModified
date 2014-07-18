@@ -1,7 +1,7 @@
 <html>
     <head>
         <title> Coverage Data for {{ fileName }} </title>
-        <link rel="stylesheet" type="text/css" href="{{ styleUrl }}">
+        <link rel="stylesheet" type="text/css" href="/style">
     </head>
     <body>
     {% autoescape None %}
@@ -11,7 +11,7 @@
     <script>
         var xmlHttp = null;
         xmlHttp = new XMLHttpRequest();
-        xmlHttp.open("GET", "{{ dataUrl }}", false);
+        xmlHttp.open("GET", "/data?buildID={{ buildID }}&gitHash={{ gitHash }}&file={{ fileName }}&counts=true", false);
         xmlHttp.send(null);
         result = JSON.parse(xmlHttp.responseText);
         var coveredLines = [];
