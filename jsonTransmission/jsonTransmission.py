@@ -464,6 +464,7 @@ class CompareHandler(tornado.web.RequestHandler):
 
             # Either lineCount1 or lineCount2 is missing
             if not ("lineCount1" in entry and "lineCount2" in entry):
+                entry["highlight"] = "warning"
                 if "lineCount1" in entry:
                     entry["coverageComparison"] = "?"
                     entry["lineCount2"] = "N/A"
@@ -480,8 +481,10 @@ class CompareHandler(tornado.web.RequestHandler):
             if entry["lineCovPercentage1"] != entry["lineCovPercentage2"]:
                 if entry["lineCovPercentage1"] > entry["lineCovPercentage2"]:
                     entry["coverageComparison"] = "-" 
+                    entry["highlight"] = "danger"
                 else:
                     entry["coverageComparison"] = "+"
+                    entry["highlight"] = "success"
 
             # The two percentages are equal
             else:
@@ -494,6 +497,7 @@ class CompareHandler(tornado.web.RequestHandler):
                         entry["coverageComparison"] = " "
                     else:
                         entry["coverageComparison"] = "N"
+                        entry["highlight"] = "warning"
 
 
 class StyleHandler(tornado.web.RequestHandler):

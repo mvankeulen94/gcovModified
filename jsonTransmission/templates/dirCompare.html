@@ -30,7 +30,11 @@
      </thead>
      <tbody>
       {% for key in sorted(results.keys()) %}
+       {% if "highlight" in results[key] %}
+       <tr class="{{ results[key]["highlight"] }}">
+       {% else %}
        <tr>
+       {% end %}
         <td>{{ key }}</td>
         <td>{{ results[key]["lineCount1"] }}</td>
         <td>{{ results[key]["lineCovCount1"] }}</td>
