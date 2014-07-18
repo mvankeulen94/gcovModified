@@ -3,8 +3,8 @@
    <title>{{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</title>
 {% end %}
 {% block body %}
+   <h2 class="page-header">Coverage Results for {{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</h2>
   <div class="main">
-   <h1 class="page-header">Coverage Results for {{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</h1>
    <div class="table-responsive">
     <table class="table table-striped">
      <thead>

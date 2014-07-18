@@ -1,17 +1,30 @@
 <html>
  <head>
-  <!-- Latest compiled and minified CSS -->
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Latest compiled and minified CSS 
   <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+-->
 
-  <!-- Optional theme -->
+  <!-- Optional theme
   <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+ -->
 
   <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>            
    
-  <!-- Latest compiled and minified JavaScript -->
+  <!-- Latest compiled and minified JavaScript 
   <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+ -->
   <script src="/static/mongostrap.min.js"></script>
   <link rel="stylesheet" href="/static/mongostrap.min.css">
+<script>
+$(window).resize(function () { 
+            $('body').css('padding-top', parseInt($('#nav').css("height"))+10);
+            });
+
+$(window).load(function () { 
+            $('body').css('padding-top', parseInt($('#nav').css("height"))+10);        
+            });
+</script>
   {% block header %}{% end %}
  </head>
  <body>

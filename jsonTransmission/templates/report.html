@@ -11,11 +11,11 @@
    </script>
 {% end %}
 {% block body %}
+      <h2>Code Coverage Home</h2>
   <div class="main">
-      <h3>Code Coverage Home</h3>
    <button class="btn btn-default" id="build-display-toggle">Build Comparison</button>
    <div id="build-comparison">
-    <h2>Build Comparison</h2>
+    <h3>Build Comparison</h3>
     <form action="/compare" method="get">
      <div class="table-responsive">
       <table class="table table-striped">
@@ -54,7 +54,7 @@
     </div>
    </form>
   </div>
-  <h2>Summary</h2>
+  <h3>Summary</h3>
   <div class="table-responsive">
    <table class="table table-striped">
     <thead>
@@ -73,14 +73,14 @@
       <td><a href="/report?buildID={{ result['_id']['buildID'] }}&gitHash={{ result['_id']['gitHash'] }}" data-toggle="tooltip" title="{{ result['_id']['buildID'] }}"> {{ result['_id']['gitHash'] }}</a></td>
       <td>{{ result['date'] }}</td>
       {% if 'lineCount' in result %}
-      <td>{{ result['lineCount'] }} / {{ result['lineCovCount'] }}</td>
+      <td>{{ result['lineCovCount'] }} / {{ result['lineCount'] }}</td>
       <td>{{ result['lineCovPercentage'] }}</td>
       {% else %}
       <td> 0 / 0 </td>
       <td>0.0%</td>
       {% end %}
       {% if 'funcCount' in result %}
-      <td>{{ result['funcCount'] }} / {{ result['funcCovCount'] }}</td>
+      <td>{{ result['funcCovCount'] }} / {{ result['funcCount'] }}</td>
       <td>{{ result['funcCovPercentage'] }}</td>
       {% else %}
       <td> 0 / 0 </td>
