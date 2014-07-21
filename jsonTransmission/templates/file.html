@@ -45,7 +45,7 @@
             }
         }
         $(document).ready(function(){
-                $('table').find('tr').each(function(){
+                $('table.highlighttable').find('tr').each(function(){
                     $(this).find('td').eq(0).before('<td class="linenos"><div class="linenodiv"><pre>' + countsString + '</pre></div></td>');
                     });
                 });

@@ -3,7 +3,26 @@
    <title>{{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</title>
 {% end %}
 {% block body %}
-   <h2 class="page-header">Coverage Results for {{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</h2>
+   <div class="table-responsive">
+    <table class="table table-striped">
+    <thead>
+      <tr>
+       <th><h2>Directory</h2></th>
+       <th><h2>src/mongo/</h2></th>
+      </tr>
+     </thead>
+     <tbody>
+      <tr>
+       <td>Build ID</td>
+       <td>{{ result['_id']['buildID'] }}</td>
+      </tr>
+      <tr>
+       <td>Git hash</td>
+       <td>{{ result['_id']['gitHash'] }}</td>
+      </tr>
+     </tbody>
+    </table>
+   </div>
   <div class="main">
    <div class="table-responsive">
     <table class="table table-striped">
