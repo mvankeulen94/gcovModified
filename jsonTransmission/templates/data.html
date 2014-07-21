@@ -4,7 +4,26 @@
 {% end %}
 {% block body %}
   <div class="main">
-   <h1 class="page-header">Coverage Results for {{ directory }}</h1>
+   <div class="table-responsive">
+    <table class="table table-striped">
+    <thead>
+      <tr>
+       <th><h2>Directory</h2></th>
+       <th><h2>{{ directory }}</h2></th>
+      </tr>
+     </thead>
+     <tbody>
+      <tr>
+       <td>Build ID</td>
+       <td>{{ buildID }}</td>
+      </tr>
+      <tr>
+       <td>Git hash</td>
+       <td>{{ gitHash }}</td>
+      </tr>
+     </tbody>
+    </table>
+   </div>
    <div class="table-responsive">
     <table class="table table-striped">
      <thead>
