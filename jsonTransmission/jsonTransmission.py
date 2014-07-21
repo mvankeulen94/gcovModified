@@ -168,10 +168,10 @@ class DataHandler(tornado.web.RequestHandler):
 
             if "testName" in args:
                 testName = args.get("testName")
-                pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+                pipeline = [{"$match":{"buildID": buildID, "gitHash": gitHash, "file": fileName, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
    
             else:
-                pipeline = [{"$match":{"file": fileName, "gitHash": gitHash, "buildID": buildID}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+                pipeline = [{"$match":{"buildID": buildID, "gitHash": gitHash, "file": fileName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
        
             cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
             result = {}
@@ -228,8 +228,8 @@ class MetaHandler(tornado.web.RequestHandler):
         buildID = self.json_args["_id"]["buildID"]
         self.write(gitHash + ", " + buildID)
         # Add option to specify what pattern to start with
-        pipeline = [{"$match":{"file": re.compile("^src\/mongo"), 
-                     "gitHash": gitHash, "buildID": buildID}}, 
+        pipeline = [{"$match":{"buildID": buildID, "gitHash": gitHash,
+                               "file": re.compile("^src\/mongo")}}, 
                     {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, 
                     {"$group":{"_id":"$file", "count":{"$sum":1}, 
                      "noexec":{"$sum":{"$cond":[{"$eq":["$lc.ec",0]},1,0]}}}  }]

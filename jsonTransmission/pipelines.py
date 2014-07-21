@@ -3,9 +3,9 @@ import re
 function_pipeline = [
 	{
 		"$match" : {
-			"file" : re.compile("^src\/mongo"),
+			"buildID" : "",
 			"gitHash" : "",
-			"buildID" : "" 
+			"file" : re.compile("^src\/mongo")
 		}
 	},
 	{
@@ -80,9 +80,9 @@ function_pipeline = [
 line_pipeline = [
         {
 		"$match" : {
-			"file" : re.compile("^src\/mongo"),
+			"buildID" : "",
 			"gitHash" : "",
-			"buildID" : "" 
+			"file" : re.compile("^src\/mongo")
 		}
 	},
 	{
@@ -157,9 +157,9 @@ line_pipeline = [
 file_line_pipeline = [
 	{
 		"$match" : {
-			"file" : "", 
+			"buildID" : "",
 			"gitHash" : "",
-			"buildID" : "" 
+			"file" : "" 
 		}
 	},
 	{
@@ -193,9 +193,9 @@ file_line_pipeline = [
 file_func_pipeline = [
 	{
 		"$match" : {
-			"file" : "", 
+			"buildID" : "",
 			"gitHash" : "",
-			"buildID" : "" 
+			"file" : "" 
 		}
 	},
 	{
@@ -229,8 +229,8 @@ file_func_pipeline = [
 file_comp_pipeline = [
 	{
 		"$match" : {
-			"dir" : "", 
-			"buildID" : "" 
+			"buildID" : "",
+			"dir" : "" 
 		}
 	},
 	{
