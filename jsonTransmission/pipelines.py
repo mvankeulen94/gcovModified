@@ -11,8 +11,8 @@ function_pipeline = [
 	{
 		"$project" : {
 			"file" : 1,
-                        "gitHash": 1,
-                        "buildID" : 1,
+			"gitHash" : 1,
+			"buildID" : 1,
 			"dir" : 1,
 			"functions" : 1
 		}
@@ -24,8 +24,8 @@ function_pipeline = [
 		"$group" : {
 			"_id" : {
 				"file" : "$file",
-                                "gitHash": "$gitHash",
-                                "buildID": "$buildID",
+				"gitHash" : "$gitHash",
+				"buildID" : "$buildID",
 				"line" : "$functions.ln",
 				"dir" : "$dir"
 			},
@@ -38,23 +38,21 @@ function_pipeline = [
 		"$group" : {
 			"_id" : {
 				"file" : "$_id.file",
-                                "gitHash": "$_id.gitHash",
-                                "buildID": "$_id.buildID",
+				"gitHash" : "$_id.gitHash",
+				"buildID" : "$_id.buildID",
 				"line" : "$_id.line",
 				"dir" : "$_id.dir"
 			},
 			"hit" : {
-				"$sum" : {
-					"$cond" : {
-						"if" : {
-							"$eq" : [
-								"$count",
-								0
-							]
-						},
-						"then" : 0,
-						"else" : 1
-					}
+				"$cond" : {
+					"if" : {
+						"$eq" : [
+							"$count",
+							0
+						]
+					},
+					"then" : 0,
+					"else" : 1
 				}
 			}
 		}
@@ -62,10 +60,10 @@ function_pipeline = [
 	{
 		"$group" : {
 			"_id" : {
-                                "dir": "$_id.dir",
-                                "gitHash": "$_id.gitHash",
-                                "buildID": "$_id.buildID",
-                                  },
+				"dir" : "$_id.dir",
+				"gitHash" : "$_id.gitHash",
+				"buildID" : "$_id.buildID"
+			},
 			"funcCount" : {
 				"$sum" : 1
 			},
@@ -74,11 +72,10 @@ function_pipeline = [
 			}
 		}
 	}
-
 ]
 
 line_pipeline = [
-        {
+	{
 		"$match" : {
 			"buildID" : "",
 			"gitHash" : "",
@@ -88,8 +85,8 @@ line_pipeline = [
 	{
 		"$project" : {
 			"file" : 1,
-                        "gitHash": 1,
-                        "buildID" : 1,
+			"gitHash" : 1,
+			"buildID" : 1,
 			"dir" : 1,
 			"lc" : 1
 		}
@@ -101,8 +98,8 @@ line_pipeline = [
 		"$group" : {
 			"_id" : {
 				"file" : "$file",
-                                "gitHash": "$gitHash",
-                                "buildID": "$buildID",
+				"gitHash" : "$gitHash",
+				"buildID" : "$buildID",
 				"line" : "$lc.ln",
 				"dir" : "$dir"
 			},
@@ -116,22 +113,20 @@ line_pipeline = [
 			"_id" : {
 				"file" : "$_id.file",
 				"line" : "$_id.line",
-                                "gitHash": "$_id.gitHash",
-                                "buildID": "$_id.buildID",
+				"gitHash" : "$_id.gitHash",
+				"buildID" : "$_id.buildID",
 				"dir" : "$_id.dir"
 			},
 			"hit" : {
-				"$sum" : {
-					"$cond" : {
-						"if" : {
-							"$eq" : [
-								"$count",
-								0
-							]
-						},
-						"then" : 0,
-						"else" : 1
-					}
+				"$cond" : {
+					"if" : {
+						"$eq" : [
+							"$count",
+							0
+						]
+					},
+					"then" : 0,
+					"else" : 1
 				}
 			}
 		}
@@ -139,10 +134,10 @@ line_pipeline = [
 	{
 		"$group" : {
 			"_id" : {
-                                "dir": "$_id.dir",
-                                "gitHash": "$_id.gitHash",
-                                "buildID": "$_id.buildID",
-                                  },
+				"dir" : "$_id.dir",
+				"gitHash" : "$_id.gitHash",
+				"buildID" : "$_id.buildID"
+			},
 			"lineCount" : {
 				"$sum" : 1
 			},
@@ -151,9 +146,7 @@ line_pipeline = [
 			}
 		}
 	}
-
 ]
-
 file_line_pipeline = [
 	{
 		"$match" : {

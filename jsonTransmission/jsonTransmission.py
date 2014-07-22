@@ -309,7 +309,7 @@ class ReportHandler(tornado.web.RequestHandler):
 
         if len(args) == 0:
             # Get git hashes and build IDs 
-            cursor =  self.application.metaCollection.find()
+            cursor =  self.application.metaCollection.find().sort("date", pymongo.DESCENDING)
             results = []
 
             while (yield cursor.fetch_next):
