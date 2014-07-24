@@ -112,6 +112,7 @@ def doJSONImport():
        
     request = tornado.httpclient.HTTPRequest(url=options.connectstr + "/meta", 
                                              method="POST", 
+                                             request_timeout=300.0,
                                              body=json.dumps(metaRecord))
     try:
         response = http_client.fetch(request)
@@ -139,6 +140,7 @@ def doImportFile(fileName, gitHash, buildID, testName, http_client, url):
                                              url=url,
                                              method="POST", 
                                              headers={"Content-Type": "application/json"},
+                                             request_timeout=300.0,
                                              body=json.dumps(record))
         try:
             response = http_client.fetch(request)

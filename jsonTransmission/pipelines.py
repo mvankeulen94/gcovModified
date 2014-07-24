@@ -5,7 +5,7 @@ function_pipeline = [
 		"$match" : {
 			"buildID" : "",
 			"gitHash" : "",
-			"file" : re.compile("^src\/mongo")
+			"file" : re.compile("^src\/mongo") 
 		}
 	},
 	{
@@ -44,15 +44,17 @@ function_pipeline = [
 				"dir" : "$_id.dir"
 			},
 			"hit" : {
-				"$cond" : {
-					"if" : {
-						"$eq" : [
-							"$count",
-							0
-						]
-					},
-					"then" : 0,
-					"else" : 1
+				"$sum" : {
+					"$cond" : {
+						"if" : {
+							"$eq" : [
+								"$count",
+								0
+							]
+						},
+						"then" : 0,
+						"else" : 1
+					}
 				}
 			}
 		}
@@ -118,15 +120,17 @@ line_pipeline = [
 				"dir" : "$_id.dir"
 			},
 			"hit" : {
-				"$cond" : {
-					"if" : {
-						"$eq" : [
-							"$count",
-							0
-						]
-					},
-					"then" : 0,
-					"else" : 1
+				"$sum" : {
+					"$cond" : {
+						"if" : {
+							"$eq" : [
+								"$count",
+								0
+							]
+						},
+						"then" : 0,
+						"else" : 1
+					}
 				}
 			}
 		}
@@ -147,6 +151,7 @@ line_pipeline = [
 		}
 	}
 ]
+
 file_line_pipeline = [
 	{
 		"$match" : {
