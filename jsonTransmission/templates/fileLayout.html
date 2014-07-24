@@ -19,7 +19,7 @@ table.highlighttable {
     overflow-x: scroll;      
     position: absolute;
 }
-table, div.table-responsive {
+table, div.fileTable {
     width: 1500px; 
 }
 
@@ -39,6 +39,7 @@ table, div.table-responsive {
          </button>
      </div>
  </div>
+  <div class="fileTable">
    <div class="table-responsive">
     <table class="table table-striped">
     <thead>
@@ -56,9 +57,14 @@ table, div.table-responsive {
        <td>Git hash</td>
        <td>{{ gitHash }}</td>
       </tr>
+      <tr>
+       <td>Branch</td>
+       <td>{{ branch }}</td>
+      </tr>
      </tbody>
     </table>
   </div>
+ </div>
    <div class="container-fluid">
      <div class="span12">
          {% block body %}{% end %}
