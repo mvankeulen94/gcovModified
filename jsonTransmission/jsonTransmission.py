@@ -154,7 +154,7 @@ class DataHandler(tornado.web.RequestHandler):
                 if "funcCount" in results[key]:
                     results[key]["funcCovPercentage"] = round(float(results[key]["funcCovCount"])/results[key]["funcCount"] * 100, 2)
 
-            self.render("templates/data.html", results=results, directory=directory, gitHash=gitHash, buildID=buildID)
+            self.render("templates/data.html", results=results, directory=directory, gitHash=gitHash, buildID=buildID, clip=len(directory))
 
         else:
             if not "file" in args:
@@ -341,7 +341,7 @@ class ReportHandler(tornado.web.RequestHandler):
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 dirResults.append(bsonobj)
-            self.render("templates/directory.html", result=metaResult, dirResults=dirResults)
+            self.render("templates/directory.html", result=metaResult, dirResults=dirResults, clip=len("src/mongo/"))
 
 
 class CoverageFormatter(HtmlFormatter):
