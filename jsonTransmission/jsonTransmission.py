@@ -48,7 +48,7 @@ class Application(tornado.web.Application):
         (r"/", MainHandler),
         (r"/report", ReportHandler),
         (r"/data", DataHandler),
-        (r"/meta", MetaHandler),
+        (r"/meta", CacheHandler),
         (r"/style", StyleHandler),
         (r"/compare", CompareHandler),
         (r"/static/(.*)", tornado.web.StaticFileHandler, 
@@ -154,7 +154,15 @@ class DataHandler(tornado.web.RequestHandler):
                 if "funcCount" in results[key]:
                     results[key]["funcCovPercentage"] = round(float(results[key]["funcCovCount"])/results[key]["funcCount"] * 100, 2)
 
-            self.render("templates/data.html", results=results, directory=directory, gitHash=gitHash, buildID=buildID, clip=len(directory))
+            # Get branch name
+            cursor = self.application.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
+            branch = ""
+            while (yield cursor.fetch_next):
+                branch = cursor.next_object()["branch"]
+
+            self.render("templates/data.html", results=results, directory=directory, 
+                        gitHash=gitHash, buildID=buildID, clip=len(directory), 
+                        branch=branch)
 
         else:
             if not "file" in args:
@@ -199,13 +207,22 @@ class DataHandler(tornado.web.RequestHandler):
                 http_client = tornado.httpclient.HTTPClient()
                 request = tornado.httpclient.HTTPRequest(url=url,
                                                          user_agent="Maria's API Test")
+                # Get branch name
+                cursor = self.application.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
+                branch = ""
+                while (yield cursor.fetch_next):
+                    branch = cursor.next_object()["branch"]
+
                 try:
                     response = http_client.fetch(request)
                     responseDict = json.loads(response.body)
                     content = base64.b64decode(responseDict["content"])
                     fileContent = highlight(content, CppLexer(), CoverageFormatter())
                     lineCount = string.count(content, "\n")
-                    self.render("templates/file.html", buildID=buildID, gitHash=gitHash, fileName=fileName, fileContent=fileContent, lineCount=lineCount)
+                    self.render("templates/file.html", buildID=buildID, 
+                                gitHash=gitHash, fileName=fileName, 
+                                fileContent=fileContent, lineCount=lineCount,
+                                branch=branch)
 
                 except tornado.httpclient.HTTPError as e:
                     print "Error: ", e
@@ -213,7 +230,7 @@ class DataHandler(tornado.web.RequestHandler):
                 http_client.close()
 
 
-class MetaHandler(tornado.web.RequestHandler):
+class CacheHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
     def post(self):
@@ -341,7 +358,16 @@ class ReportHandler(tornado.web.RequestHandler):
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 dirResults.append(bsonobj)
-            self.render("templates/directory.html", result=metaResult, dirResults=dirResults, clip=len("src/mongo/"))
+
+            # Get branch name
+            cursor = self.application.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
+            branch = ""
+            while (yield cursor.fetch_next):
+                branch = cursor.next_object()["branch"]
+
+            self.render("templates/directory.html", result=metaResult, 
+                        dirResults=dirResults, clip=len("src/mongo/"), 
+                        branch=branch)
 
 
 class CoverageFormatter(HtmlFormatter):
