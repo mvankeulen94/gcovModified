@@ -19,6 +19,7 @@ import base64
 from pygments import highlight
 from pygments.lexers import CppLexer
 from pygments.formatters import HtmlFormatter
+import datetime
 
 import pipelines
 
@@ -26,17 +27,21 @@ import urllib
 import string
 
 
-def __request_gitHub_file__(identifier, gitHash, fileName):
+def __requestGitHubFile__(identifier, gitHash, fileName):
     """Retrieve file from gitHub and add syntax highlighting.
 
     Return highlighted file content and line count of content.
     """
+    with open ("token", "r") as f:
+        token = f.readline().rstrip()
+
     owner = "mongodb"
     repo = "mongo"
     url = ("https://api.github.com/repos/" + owner + "/" + repo + 
            "/contents/" + fileName + "?ref=" + gitHash)
+    headers = {"Authorization": "token " + token}
     http_client = tornado.httpclient.HTTPClient()
-    request = tornado.httpclient.HTTPRequest(url=url,
+    request = tornado.httpclient.HTTPRequest(url=url, headers=headers,
                                              user_agent="Maria's API Test")
     try:
         response = http_client.fetch(request)
@@ -51,6 +56,21 @@ def __request_gitHub_file__(identifier, gitHash, fileName):
     
     http_client.close()
     return fileContent, lineCount
+
+
+def __parseBuildID__(buildID):
+    """Extract information from buildID"""
+    buildInfo = buildID.split("_")
+    userName = buildInfo[0]
+    repo = buildInfo[1]
+    version = buildInfo[2]
+    edition = buildInfo[3] + " " + buildInfo[4]
+    gitHash = buildInfo[5]
+    dateInfo = [int(num) for num in buildInfo[6:]]
+    date = datetime.datetime(dateInfo[0], dateInfo[1], dateInfo[2],
+                             dateInfo[3], dateInfo[4])
+
+    return gitHash, date
 
 
 class Application(tornado.web.Application):
@@ -434,10 +454,16 @@ class CompareHandler(tornado.web.RequestHandler):
                 self.render("templates/dirCompare.html", buildID1=buildID1, buildID2=buildID2, results=results, directory=directory)
             
             # File comparison
-            elif "file1" in args:
-                if not "file2" in args:
-                    return
+            elif "file" in args:
+                buildID1 = args["buildID1"][0] 
+                buildID2 = args["buildID2"][0]
+                gitHash1, date = __parseBuildID__(buildID1)
+                gitHash2, date = __parseBuildID__(buildID2)
+                fileName = urllib.unquote(args.get("file")[0])
+                fileContent1, lineCount1 = __requestGitHubFile__("A", gitHash1, fileName)
+                fileContent2, lineCount2 = __requestGitHubFile__("B", gitHash2, fileName)
 
+                self.render("templates/fileCompare.html", buildID1=buildID1, buildID2=buildID2, fileContent1=fileContent1, fileContent2=fileContent2, fileName=fileName, gitHash1=gitHash1, gitHash2=gitHash2, lineCount1=lineCount1, lineCount2=lineCount2)
            
             # Build comparison
             else:

@@ -1,0 +1,73 @@
+{% extends "fileCompareLayout.html" %}
+{% block header %}
+        <title> Coverage Comparison for {{ fileName }} </title>
+        <link rel="stylesheet" type="text/css" href="/style">
+{% end %}
+{% block body %}
+<div class="file1">
+    {% autoescape None %}
+    {{ fileContent1 }}
+</div>
+<div class="file2">
+    {{ fileContent2 }}
+</div>
+{% end %}
+{% block footer %}
+    <script>
+    highlightCode(identifier) {
+        var xmlHttp = null;
+        xmlHttp = new XMLHttpRequest();
+        if identifier == "A" 
+        {
+            xmlHttp.open("GET", "/data?buildID={{ buildID1 }}&gitHash={{ gitHash1 }}&file={{ fileName }}&counts=true", false);
+            len = {{ lineCount1 }};
+        }
+        else 
+        {
+            xmlHttp.open("GET", "/data?buildID={{ buildID2 }}&gitHash={{ gitHash2 }}&file={{ fileName }}&counts=true", false);
+            len = {{ lineCount2 }};
+        }
+
+        xmlHttp.send(null);
+        result = JSON.parse(xmlHttp.responseText);
+        var coveredLines = [];
+        var uncoveredLines = [];
+        for (key in result["counts"]) {
+            lineno = key;
+            if (result["counts"][key] > 0) {
+                coveredLines[coveredLines.length] = "line" + identifier + lineno;
+            }
+            else {
+                uncoveredLines[uncoveredLines.length] = "line" + identifier + lineno;
+            }
+        }
+
+    for (i = 0, len = coveredLines.length; i < len; i++) {
+        document.getElementById(coveredLines[i]).style.backgroundColor = "DCF2A5";
+    }
+
+    for (i = 0, len = uncoveredLines.length; i < len; i++) {
+        document.getElementById(uncoveredLines[i]).style.backgroundColor = "F2A5A5";
+    }
+    var countsString = "";
+        
+    for (i = 1; i <= len; i++) {
+        if (i.toString() in result["counts"]) {
+            countsString += result["counts"][i.toString()];
+            countsString += "\n";
+        }
+        else {
+            countsString += " \n";
+        }
+    }
+    }
+    highlightCode("A");
+    $(document).ready(function(){
+            $('table.highlighttable').find('tr').each(function(){
+                $(this).find('td').eq(0).before('<td class="linenos"><div class="linenodiv"><pre>' + countsString + '</pre></div></td>');
+                });
+            });
+
+</script>
+{% end %}
+
