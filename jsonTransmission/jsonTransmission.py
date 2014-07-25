@@ -19,11 +19,58 @@ import base64
 from pygments import highlight
 from pygments.lexers import CppLexer
 from pygments.formatters import HtmlFormatter
+import datetime
 
 import pipelines
 
 import urllib
 import string
+
+
+def __requestGitHubFile__(identifier, gitHash, fileName):
+    """Retrieve file from gitHub and add syntax highlighting.
+
+    Return highlighted file content and line count of content.
+    """
+    with open ("token", "r") as f:
+        token = f.readline().rstrip()
+
+    owner = "mongodb"
+    repo = "mongo"
+    url = ("https://api.github.com/repos/" + owner + "/" + repo + 
+           "/contents/" + fileName + "?ref=" + gitHash)
+    headers = {"Authorization": "token " + token}
+    http_client = tornado.httpclient.HTTPClient()
+    request = tornado.httpclient.HTTPRequest(url=url, headers=headers,
+                                             user_agent="Maria's API Test")
+    try:
+        response = http_client.fetch(request)
+        responseDict = json.loads(response.body)
+        content = base64.b64decode(responseDict["content"])
+        fileContent = highlight(content, CppLexer(), 
+                                CoverageFormatter(identifier))
+        lineCount = string.count(content, "\n")
+
+    except tornado.httpclient.HTTPError as e:
+        return "NULL", "NULL"
+    
+    http_client.close()
+    return fileContent, lineCount
+
+
+def __parseBuildID__(buildID):
+    """Extract information from buildID"""
+    buildInfo = buildID.split("_")
+    userName = buildInfo[0]
+    repo = buildInfo[1]
+    version = buildInfo[2]
+    edition = buildInfo[3] + " " + buildInfo[4]
+    gitHash = buildInfo[5]
+    dateInfo = [int(num) for num in buildInfo[6:]]
+    date = datetime.datetime(dateInfo[0], dateInfo[1], dateInfo[2],
+                             dateInfo[3], dateInfo[4])
+
+    return gitHash, date
 
 
 class Application(tornado.web.Application):
@@ -199,35 +246,23 @@ class DataHandler(tornado.web.RequestHandler):
 
             else: 
                 # Request file from github
-                owner = "mongodb"
-                repo = "mongo"
                 fileName = args["file"][0]
-                url = ("https://api.github.com/repos/" + owner + "/" + repo + 
-                        "/contents/" + args["file"][0] + "?ref=" + gitHash)
-                http_client = tornado.httpclient.HTTPClient()
-                request = tornado.httpclient.HTTPRequest(url=url,
-                                                         user_agent="Maria's API Test")
+                (fileContent, lineCount) = __request_gitHub_file__("", gitHash, fileName)
+                if fileContent == "NULL":
+                    print "Error!"
+                    return
+
                 # Get branch name
                 cursor = self.application.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
                 branch = ""
                 while (yield cursor.fetch_next):
                     branch = cursor.next_object()["branch"]
 
-                try:
-                    response = http_client.fetch(request)
-                    responseDict = json.loads(response.body)
-                    content = base64.b64decode(responseDict["content"])
-                    fileContent = highlight(content, CppLexer(), CoverageFormatter())
-                    lineCount = string.count(content, "\n")
                     self.render("templates/file.html", buildID=buildID, 
                                 gitHash=gitHash, fileName=fileName, 
                                 fileContent=fileContent, lineCount=lineCount,
                                 branch=branch)
 
-                except tornado.httpclient.HTTPError as e:
-                    print "Error: ", e
-    
-                http_client.close()
 
 
 class CacheHandler(tornado.web.RequestHandler):
@@ -371,8 +406,9 @@ class ReportHandler(tornado.web.RequestHandler):
 
 
 class CoverageFormatter(HtmlFormatter):
-    def __init__(self):
+    def __init__(self, identifier):
         HtmlFormatter.__init__(self, linenos="table")
+        self.identifier = identifier
     
     def wrap(self, source, outfile):
         return self._wrap_code(source)
@@ -383,7 +419,8 @@ class CoverageFormatter(HtmlFormatter):
         for i, t in source:
             if i == 1:
                 num += 1
-                t = '<span id="line%s">' % str(num) + t
+                t = ('<span id="line%s%s">' % 
+                     (self.identifier, str(num)) + t)
                 t += '</span>'
             yield i, t
         yield 0, '</pre></div>'
@@ -418,7 +455,15 @@ class CompareHandler(tornado.web.RequestHandler):
             
             # File comparison
             elif "file" in args:
-                return
+                buildID1 = args["buildID1"][0] 
+                buildID2 = args["buildID2"][0]
+                gitHash1, date = __parseBuildID__(buildID1)
+                gitHash2, date = __parseBuildID__(buildID2)
+                fileName = urllib.unquote(args.get("file")[0])
+                fileContent1, lineCount1 = __requestGitHubFile__("A", gitHash1, fileName)
+                fileContent2, lineCount2 = __requestGitHubFile__("B", gitHash2, fileName)
+
+                self.render("templates/fileCompare.html", buildID1=buildID1, buildID2=buildID2, fileContent1=fileContent1, fileContent2=fileContent2, fileName=fileName, gitHash1=gitHash1, gitHash2=gitHash2, lineCount1=lineCount1, lineCount2=lineCount2)
            
             # Build comparison
             else:
@@ -482,6 +527,7 @@ class CompareHandler(tornado.web.RequestHandler):
                     results[key]["lineCovPercentage" + str(i+1)] = round(float(results[key]["lineCovCount" + str(i+1)])/results[key]["lineCount" + str(i+1)] * 100, 2)
         raise gen.Return(results)
 
+
     def addCoverageComparison(self, results):
         """Add coverage comparison data to results."""
         for key in results.keys():
@@ -532,7 +578,7 @@ class StyleHandler(tornado.web.RequestHandler):
         args = self.request.arguments
         if len(args) != 0:
             return
-        self.write(CoverageFormatter().get_style_defs(".highlight"))
+        self.write(CoverageFormatter("").get_style_defs(".highlight"))
 
 
 if __name__ == "__main__":

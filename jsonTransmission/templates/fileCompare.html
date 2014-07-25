@@ -1,0 +1,59 @@
+{% extends "fileCompareLayout.html" %}
+{% block header %}
+        <title> Coverage Comparison for {{ fileName }} </title>
+        <link rel="stylesheet" type="text/css" href="/style">
+{% end %}
+{% block body %}
+<div class="file1">
+    {% autoescape None %}
+    {{ fileContent1 }}
+</div>
+<div class="file2">
+    {{ fileContent2 }}
+</div>
+{% end %}
+{% block footer %}
+    <script>
+     var highlightCode = function(identifier) {
+         var xmlHttp = null;
+         var len = 0;
+         xmlHttp = new XMLHttpRequest();
+         if (identifier == "A")
+         {
+             xmlHttp.open("GET", "/data?buildID={{ buildID1 }}&gitHash={{ gitHash1 }}&file={{ fileName }}&counts=true", false);
+         }
+         else 
+         {
+             xmlHttp.open("GET", "/data?buildID={{ buildID2 }}&gitHash={{ gitHash2 }}&file={{ fileName }}&counts=true", false);
+         }
+ 
+         xmlHttp.send(null);
+         result = JSON.parse(xmlHttp.responseText);
+         var coveredLines = [];
+         var uncoveredLines = [];
+         for (key in result["counts"]) {
+             lineno = key;
+             if (result["counts"][key] > 0) {
+                 coveredLines[coveredLines.length] = "line" + identifier + lineno;
+             }
+             else {
+                 uncoveredLines[uncoveredLines.length] = "line" + identifier + lineno;
+             }
+         }
+
+         for (i = 0, len = coveredLines.length; i < len; i++) {
+             document.getElementById(coveredLines[i]).style.backgroundColor = "DCF2A5";
+         }
+
+         for (i = 0, len = uncoveredLines.length; i < len; i++) {
+             document.getElementById(uncoveredLines[i]).style.backgroundColor = "F2A5A5";
+         } 
+     };
+     $(document).ready(function(){
+             highlightCode("A");
+             highlightCode("B");
+             });
+
+</script>
+{% end %}
+

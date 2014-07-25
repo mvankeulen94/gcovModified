@@ -14,15 +14,25 @@
         });
   </script>
   <style>
-table.highlighttable {
-    height: auto;
-    position: absolute;
-}
-table, div.fileTable {
-    width: 100%;
-    min-width: 1400px;
-    overflow-x: scroll;
-}
+
+   table.highlighttable {
+       height: auto;
+   }
+
+   div.file1 {
+       width: 50%;
+       float: left;
+   }
+
+   div.file2 {
+       width: 50%;
+       float: right;
+   }
+
+   div.container-fluid {
+       overflow-x: scroll;
+       min-width: 1800px;
+   }
 
   </style>
   {% block header %}{% end %}
@@ -40,36 +50,13 @@ table, div.fileTable {
          </button>
      </div>
  </div>
-  <div class="fileTable">
-   <div class="table-responsive">
-    <table class="table table-striped">
-    <thead>
-      <tr>
-       <th><h2>File</h2></th>
-       <th><h2>{{ fileName }}</h2></th>
-      </tr>
-     </thead>
-     <tbody>
-      <tr>
-       <td>Build ID</td>
-       <td>{{ buildID }}</td>
-      </tr>
-      <tr>
-       <td>Git hash</td>
-       <td>{{ gitHash }}</td>
-      </tr>
-      <tr>
-       <td>Branch</td>
-       <td>{{ branch }}</td>
-      </tr>
-     </tbody>
-    </table>
-  </div>
+  <h3>Coverage Comparison - File: {{ fileName }}</h3>
+  <h4>{{ buildID1 }} vs. {{ buildID2 }}</h4>
+
    <div class="container-fluid">
      <div class="span12">
          {% block body %}{% end %}
      </div>
- </div>
  </div>
  </body>
  {% block footer %}{% end %}
