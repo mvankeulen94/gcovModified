@@ -1,0 +1,63 @@
+<html>
+ <head>
+  <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>            
+   
+  <!-- Latest compiled and minified JavaScript -->
+  <link rel="stylesheet" href="/static/mongostrap.min.css">
+  <script>
+     $(window).resize(function () { 
+        $('body').css('padding-top', parseInt($('#nav').css("height"))+10);
+        });
+
+     $(window).load(function () { 
+        $('body').css('padding-top', parseInt($('#nav').css("height"))+10);        
+        });
+  </script>
+  <style>
+
+   table.highlighttable {
+       height: auto;
+   }
+
+   div.file1 {
+       width: 50%;
+       float: left;
+   }
+
+   div.file2 {
+       width: 50%;
+       float: right;
+   }
+
+   div.container-fluid {
+       overflow-x: scroll;
+       min-width: 1800px;
+   }
+
+  </style>
+  {% block header %}{% end %}
+ </head>
+ <body>
+ <div id="nav" class="navbar navbar-inverse navbar-fixed-top">
+
+     <div class="navbar-header">
+         <a class="navbar-brand" href="/report">MongoDB Code Coverage</a>
+         <button type="button" class="navbar-toggle" data-toggle="collapse" 
+             data-target="#navbar-collapse-content">
+             <span class="icon-bar"></span>
+             <span class="icon-bar"></span>
+             <span class="icon-bar"></span>
+         </button>
+     </div>
+ </div>
+  <h3>Coverage Comparison - File: {{ fileName }}</h3>
+  <h4>{{ buildID1 }} vs. {{ buildID2 }}</h4>
+
+   <div class="container-fluid">
+     <div class="span12">
+         {% block body %}{% end %}
+     </div>
+ </div>
+ </body>
+ {% block footer %}{% end %}
+</html>

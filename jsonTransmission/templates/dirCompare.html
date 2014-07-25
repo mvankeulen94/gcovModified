@@ -35,7 +35,7 @@
        {% else %}
        <tr>
        {% end %}
-        <td>{{ key }}</td>
+       <td><a href="/compare?buildID1={{ buildID1 }}&buildID2={{ buildID2 }}&file={{url_escape(key)}}">{{ key }}</a></td>
         <td>{{ results[key]["lineCount1"] }}</td>
         <td>{{ results[key]["lineCovCount1"] }}</td>
         <td>{{ results[key]["lineCovPercentage1"] }}</td>
