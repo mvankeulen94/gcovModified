@@ -26,6 +26,33 @@ import urllib
 import string
 
 
+def __request_gitHub_file__(identifier, gitHash, fileName):
+    """Retrieve file from gitHub and add syntax highlighting.
+
+    Return highlighted file content and line count of content.
+    """
+    owner = "mongodb"
+    repo = "mongo"
+    url = ("https://api.github.com/repos/" + owner + "/" + repo + 
+           "/contents/" + fileName + "?ref=" + gitHash)
+    http_client = tornado.httpclient.HTTPClient()
+    request = tornado.httpclient.HTTPRequest(url=url,
+                                             user_agent="Maria's API Test")
+    try:
+        response = http_client.fetch(request)
+        responseDict = json.loads(response.body)
+        content = base64.b64decode(responseDict["content"])
+        fileContent = highlight(content, CppLexer(), 
+                                CoverageFormatter(identifier))
+        lineCount = string.count(content, "\n")
+
+    except tornado.httpclient.HTTPError as e:
+        return "NULL", "NULL"
+    
+    http_client.close()
+    return fileContent, lineCount
+
+
 class Application(tornado.web.Application):
     def __init__(self):
         configFile = open("config.conf", "r")
@@ -199,35 +226,23 @@ class DataHandler(tornado.web.RequestHandler):
 
             else: 
                 # Request file from github
-                owner = "mongodb"
-                repo = "mongo"
                 fileName = args["file"][0]
-                url = ("https://api.github.com/repos/" + owner + "/" + repo + 
-                        "/contents/" + args["file"][0] + "?ref=" + gitHash)
-                http_client = tornado.httpclient.HTTPClient()
-                request = tornado.httpclient.HTTPRequest(url=url,
-                                                         user_agent="Maria's API Test")
+                (fileContent, lineCount) = __request_gitHub_file__("", gitHash, fileName)
+                if fileContent == "NULL":
+                    print "Error!"
+                    return
+
                 # Get branch name
                 cursor = self.application.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
                 branch = ""
                 while (yield cursor.fetch_next):
                     branch = cursor.next_object()["branch"]
 
-                try:
-                    response = http_client.fetch(request)
-                    responseDict = json.loads(response.body)
-                    content = base64.b64decode(responseDict["content"])
-                    fileContent = highlight(content, CppLexer(), CoverageFormatter())
-                    lineCount = string.count(content, "\n")
                     self.render("templates/file.html", buildID=buildID, 
                                 gitHash=gitHash, fileName=fileName, 
                                 fileContent=fileContent, lineCount=lineCount,
                                 branch=branch)
 
-                except tornado.httpclient.HTTPError as e:
-                    print "Error: ", e
-    
-                http_client.close()
 
 
 class CacheHandler(tornado.web.RequestHandler):
@@ -371,8 +386,9 @@ class ReportHandler(tornado.web.RequestHandler):
 
 
 class CoverageFormatter(HtmlFormatter):
-    def __init__(self):
+    def __init__(self, identifier):
         HtmlFormatter.__init__(self, linenos="table")
+        self.identifier = identifier
     
     def wrap(self, source, outfile):
         return self._wrap_code(source)
@@ -383,7 +399,8 @@ class CoverageFormatter(HtmlFormatter):
         for i, t in source:
             if i == 1:
                 num += 1
-                t = '<span id="line%s">' % str(num) + t
+                t = ('<span id="line%s%s">' % 
+                     (self.identifier, str(num)) + t)
                 t += '</span>'
             yield i, t
         yield 0, '</pre></div>'
@@ -417,8 +434,10 @@ class CompareHandler(tornado.web.RequestHandler):
                 self.render("templates/dirCompare.html", buildID1=buildID1, buildID2=buildID2, results=results, directory=directory)
             
             # File comparison
-            elif "file" in args:
-                return
+            elif "file1" in args:
+                if not "file2" in args:
+                    return
+
            
             # Build comparison
             else:
@@ -482,6 +501,7 @@ class CompareHandler(tornado.web.RequestHandler):
                     results[key]["lineCovPercentage" + str(i+1)] = round(float(results[key]["lineCovCount" + str(i+1)])/results[key]["lineCount" + str(i+1)] * 100, 2)
         raise gen.Return(results)
 
+
     def addCoverageComparison(self, results):
         """Add coverage comparison data to results."""
         for key in results.keys():
@@ -532,7 +552,7 @@ class StyleHandler(tornado.web.RequestHandler):
         args = self.request.arguments
         if len(args) != 0:
             return
-        self.write(CoverageFormatter().get_style_defs(".highlight"))
+        self.write(CoverageFormatter("").get_style_defs(".highlight"))
 
 
 if __name__ == "__main__":

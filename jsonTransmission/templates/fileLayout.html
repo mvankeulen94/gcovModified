@@ -16,11 +16,12 @@
   <style>
 table.highlighttable {
     height: auto;
-    overflow-x: scroll;      
     position: absolute;
 }
 table, div.fileTable {
-    width: 1500px; 
+    width: 100%;
+    min-width: 1400px;
+    overflow-x: scroll;
 }
 
   </style>
@@ -64,11 +65,11 @@ table, div.fileTable {
      </tbody>
     </table>
   </div>
- </div>
    <div class="container-fluid">
      <div class="span12">
          {% block body %}{% end %}
      </div>
+ </div>
  </div>
  </body>
  {% block footer %}{% end %}
