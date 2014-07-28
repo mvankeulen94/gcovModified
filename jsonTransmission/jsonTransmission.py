@@ -100,6 +100,16 @@ class Application(tornado.web.Application):
          {"path": "static/"}),
         ],)
 
+    @gen.coroutine
+    def getBranchName(self, buildID, gitHash):
+        # Get branch name
+        cursor = self.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
+        branch = ""
+        while (yield cursor.fetch_next):
+            branch = cursor.next_object()["branch"]
+
+        raise gen.Return(branch)
+
     
 class MainHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
@@ -217,10 +227,7 @@ class DataHandler(tornado.web.RequestHandler):
                     results[key]["funcCovPercentage"] = round(float(results[key]["funcCovCount"])/results[key]["funcCount"] * 100, 2)
 
             # Get branch name
-            cursor = self.application.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
-            branch = ""
-            while (yield cursor.fetch_next):
-                branch = cursor.next_object()["branch"]
+            branch = yield self.application.getBranchName(buildID, gitHash)
 
             self.render("templates/data.html", results=results, directory=directory, 
                         gitHash=gitHash, buildID=buildID, clip=len(directory), 
@@ -237,11 +244,11 @@ class DataHandler(tornado.web.RequestHandler):
             fileName = urllib.unquote(args.get("file")[0])
 
             if "testName" in args:
-                testName = args.get("testName")
+                testName = urllib.unquote(args.get("testName"))
                 pipeline = [{"$match":{"buildID": buildID, "gitHash": gitHash, "file": fileName, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
    
             else:
-                pipeline = [{"$match":{"buildID": buildID, "gitHash": gitHash, "file": fileName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+                pipeline = pipelines.file_line_pipeline
        
             cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
             result = {}
@@ -254,7 +261,8 @@ class DataHandler(tornado.web.RequestHandler):
                     result["counts"][bsonobj["_id"]["line"]] = bsonobj["count"] 
                 else:
                     result["counts"][bsonobj["_id"]["line"]] += bsonobj["count"]
-                        
+            # Check if result["counts"] == {} 
+
             if "counts" in args and args["counts"][0] == "true":
                 # Send only counts data to client
                 self.write(json.dumps(result))
@@ -268,15 +276,12 @@ class DataHandler(tornado.web.RequestHandler):
                     return
 
                 # Get branch name
-                cursor = self.application.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
-                branch = ""
-                while (yield cursor.fetch_next):
-                    branch = cursor.next_object()["branch"]
+                branch = yield self.application.getBranchName(buildID, gitHash)
 
-                    self.render("templates/file.html", buildID=buildID, 
-                                gitHash=gitHash, fileName=fileName, 
-                                fileContent=fileContent, lineCount=lineCount,
-                                branch=branch)
+                self.render("templates/file.html", buildID=buildID, 
+                            gitHash=gitHash, fileName=fileName, 
+                            fileContent=fileContent, lineCount=lineCount,
+                            branch=branch)
 
 
 
@@ -315,7 +320,6 @@ class CacheHandler(tornado.web.RequestHandler):
         self.json_args["lineCount"] = total
         self.json_args["lineCovCount"] = total-noexecTotal
         self.json_args["lineCovPercentage"] = round(float(total-noexecTotal)/total * 100, 2)
-
 
         # Generate function results
         pipeline = [{"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"},
@@ -410,10 +414,7 @@ class ReportHandler(tornado.web.RequestHandler):
                 dirResults.append(bsonobj)
 
             # Get branch name
-            cursor = self.application.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
-            branch = ""
-            while (yield cursor.fetch_next):
-                branch = cursor.next_object()["branch"]
+            branch = yield self.application.getBranchName(buildID, gitHash)
 
             self.render("templates/directory.html", result=metaResult, 
                         dirResults=dirResults, clip=len("src/mongo/"), 
