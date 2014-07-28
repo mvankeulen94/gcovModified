@@ -27,14 +27,11 @@ import urllib
 import string
 
 
-def __requestGitHubFile__(identifier, gitHash, fileName):
+def __requestGitHubFile__(identifier, gitHash, fileName, token):
     """Retrieve file from gitHub and add syntax highlighting.
 
     Return highlighted file content and line count of content.
     """
-    with open ("token", "r") as f:
-        token = f.readline().rstrip()
-
     owner = "mongodb"
     repo = "mongo"
     url = ("https://api.github.com/repos/" + owner + "/" + repo + 
@@ -90,6 +87,7 @@ class Application(tornado.web.Application):
         self.metaCollection = self.db[conf["metaCollection"]]
         self.covCollection = self.db[conf["covCollection"]]
         self.httpport = conf["httpport"]
+        self.token = conf["token"]
        
         super(Application, self).__init__([
         (r"/", MainHandler),
@@ -102,7 +100,7 @@ class Application(tornado.web.Application):
          {"path": "static/"}),
         ],)
 
-
+    
 class MainHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
@@ -247,7 +245,7 @@ class DataHandler(tornado.web.RequestHandler):
             else: 
                 # Request file from github
                 fileName = args["file"][0]
-                (fileContent, lineCount) = __request_gitHub_file__("", gitHash, fileName)
+                (fileContent, lineCount) = __requestGitHubFile__("", gitHash, fileName, self.application.token)
                 if fileContent == "NULL":
                     print "Error!"
                     return
@@ -460,8 +458,8 @@ class CompareHandler(tornado.web.RequestHandler):
                 gitHash1, date = __parseBuildID__(buildID1)
                 gitHash2, date = __parseBuildID__(buildID2)
                 fileName = urllib.unquote(args.get("file")[0])
-                fileContent1, lineCount1 = __requestGitHubFile__("A", gitHash1, fileName)
-                fileContent2, lineCount2 = __requestGitHubFile__("B", gitHash2, fileName)
+                fileContent1, lineCount1 = __requestGitHubFile__("A", gitHash1, fileName, self.application.token)
+                fileContent2, lineCount2 = __requestGitHubFile__("B", gitHash2, fileName, self.application.token)
 
                 self.render("templates/fileCompare.html", buildID1=buildID1, buildID2=buildID2, fileContent1=fileContent1, fileContent2=fileContent2, fileName=fileName, gitHash1=gitHash1, gitHash2=gitHash2, lineCount1=lineCount1, lineCount2=lineCount2)
            
