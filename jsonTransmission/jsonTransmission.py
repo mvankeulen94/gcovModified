@@ -117,32 +117,14 @@ class MainHandler(tornado.web.RequestHandler):
 
 
 class DataHandler(tornado.web.RequestHandler):
-    @tornado.web.asynchronous
     @gen.coroutine
-    def get(self):
-        args = self.request.arguments
-        if len(args) == 0:
-            self.write("\nError!\n")
+    def getDirectoryResults(self, results, specifier):
+        """Retreieve coverage data for directories.
 
-        query = {}
-        cursor = None # Cursor with which to traverse query results
-        result = None # Dictionary to store query result
-        gitHash = urllib.unquote(args.get("gitHash")[0])
-        buildID = urllib.unquote(args.get("buildID")[0])
-
-        # Fill pipeline with gitHash and buildID info
-        pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
-        pipelines.file_func_pipeline[0]["$match"]["gitHash"] = gitHash 
-        pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
-        pipelines.file_func_pipeline[0]["$match"]["buildID"] = buildID 
-      
-        if "dir" in args:
-            directory = urllib.unquote(args.get("dir")[0])
-
-            # Fill pipeline with directory info
-            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
-            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
-           
+        results - dictionary in which results are stored
+        specifier - e.g. "line" or "func"
+        """
+        if specifier == "line":
             # Get line results
             results = {} # Store coverage data
             cursor = yield self.application.collection.aggregate(pipelines.file_line_pipeline, cursor={})
@@ -163,6 +145,7 @@ class DataHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["file"]]["lineCovCount"] = amountAdded
                     results[bsonobj["_id"]["file"]]["lineCount"] = 1
 
+        else:
             # Get function results
             cursor = yield self.application.collection.aggregate(pipelines.file_func_pipeline, cursor={})
             while (yield cursor.fetch_next):
@@ -191,6 +174,40 @@ class DataHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["file"]] = {}
                     results[bsonobj["_id"]["file"]]["funcCovCount"] = amountAdded
                     results[bsonobj["_id"]["file"]]["funcCount"] = 1
+
+
+        raise gen.Return(results)
+
+    @tornado.web.asynchronous
+    @gen.coroutine
+    def get(self):
+        args = self.request.arguments
+        if len(args) == 0:
+            self.write("\nError!\n")
+
+        query = {}
+        cursor = None # Cursor with which to traverse query results
+        result = None # Dictionary to store query result
+        gitHash = urllib.unquote(args.get("gitHash")[0])
+        buildID = urllib.unquote(args.get("buildID")[0])
+
+        # Fill pipeline with gitHash and buildID info
+        pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
+        pipelines.file_func_pipeline[0]["$match"]["gitHash"] = gitHash 
+        pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
+        pipelines.file_func_pipeline[0]["$match"]["buildID"] = buildID 
+      
+        if "dir" in args:
+            directory = urllib.unquote(args.get("dir")[0])
+
+            # Fill pipeline with directory info
+            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+           
+            # Get line results
+            results = {} # Store coverage data
+            results = yield self.getDirectoryResults(results, "line")
+            results = yield self.getDirectoryResults(results, "func")
 
             # Add line and function coverage percentage data
             for key in results.keys():
