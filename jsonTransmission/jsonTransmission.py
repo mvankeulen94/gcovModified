@@ -27,52 +27,6 @@ import urllib
 import string
 
 
-def __requestGitHubFile__(identifier, gitHash, fileName):
-    """Retrieve file from gitHub and add syntax highlighting.
-
-    Return highlighted file content and line count of content.
-    """
-    with open ("token", "r") as f:
-        token = f.readline().rstrip()
-
-    owner = "mongodb"
-    repo = "mongo"
-    url = ("https://api.github.com/repos/" + owner + "/" + repo + 
-           "/contents/" + fileName + "?ref=" + gitHash)
-    headers = {"Authorization": "token " + token}
-    http_client = tornado.httpclient.HTTPClient()
-    request = tornado.httpclient.HTTPRequest(url=url, headers=headers,
-                                             user_agent="Maria's API Test")
-    try:
-        response = http_client.fetch(request)
-        responseDict = json.loads(response.body)
-        content = base64.b64decode(responseDict["content"])
-        fileContent = highlight(content, CppLexer(), 
-                                CoverageFormatter(identifier))
-        lineCount = string.count(content, "\n")
-
-    except tornado.httpclient.HTTPError as e:
-        return "NULL", "NULL"
-    
-    http_client.close()
-    return fileContent, lineCount
-
-
-def __parseBuildID__(buildID):
-    """Extract information from buildID"""
-    buildInfo = buildID.split("_")
-    userName = buildInfo[0]
-    repo = buildInfo[1]
-    version = buildInfo[2]
-    edition = buildInfo[3] + " " + buildInfo[4]
-    gitHash = buildInfo[5]
-    dateInfo = [int(num) for num in buildInfo[6:]]
-    date = datetime.datetime(dateInfo[0], dateInfo[1], dateInfo[2],
-                             dateInfo[3], dateInfo[4])
-
-    return gitHash, date
-
-
 class Application(tornado.web.Application):
     def __init__(self):
         configFile = open("config.conf", "r")
@@ -90,6 +44,7 @@ class Application(tornado.web.Application):
         self.metaCollection = self.db[conf["metaCollection"]]
         self.covCollection = self.db[conf["covCollection"]]
         self.httpport = conf["httpport"]
+        self.token = conf["token"]
        
         super(Application, self).__init__([
         (r"/", MainHandler),
@@ -102,7 +57,59 @@ class Application(tornado.web.Application):
          {"path": "static/"}),
         ],)
 
+    @gen.coroutine
+    def getBranchName(self, buildID, gitHash):
+        # Get branch name
+        cursor = self.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
+        branch = ""
+        while (yield cursor.fetch_next):
+            branch = cursor.next_object()["branch"]
 
+        raise gen.Return(branch)
+
+    def requestGitHubFile(self, identifier, gitHash, fileName):
+        """Retrieve file from gitHub and add syntax highlighting.
+    
+        Return highlighted file content and line count of content.
+        """
+        owner = "mongodb"
+        repo = "mongo"
+        token = self.token
+        url = ("https://api.github.com/repos/" + owner + "/" + repo + 
+               "/contents/" + fileName + "?ref=" + gitHash)
+        headers = {"Authorization": "token " + token}
+        http_client = tornado.httpclient.HTTPClient()
+        request = tornado.httpclient.HTTPRequest(url=url, headers=headers,
+                                                 user_agent="Maria's API Test")
+        try:
+            response = http_client.fetch(request)
+            responseDict = json.loads(response.body)
+            content = base64.b64decode(responseDict["content"])
+            fileContent = highlight(content, CppLexer(), 
+                                    CoverageFormatter(identifier))
+            lineCount = string.count(content, "\n")
+    
+        except tornado.httpclient.HTTPError as e:
+            return "NULL", "NULL"
+        
+        http_client.close()
+        return fileContent, lineCount
+
+    def parseBuildID(self, buildID):
+        """Extract information from buildID"""
+        buildInfo = buildID.split("_")
+        userName = buildInfo[0]
+        repo = buildInfo[1]
+        version = buildInfo[2]
+        edition = buildInfo[3] + " " + buildInfo[4]
+        gitHash = buildInfo[5]
+        dateInfo = [int(num) for num in buildInfo[6:]]
+        date = datetime.datetime(dateInfo[0], dateInfo[1], dateInfo[2],
+                                 dateInfo[3], dateInfo[4])
+    
+        return gitHash, date
+
+    
 class MainHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
@@ -119,32 +126,18 @@ class MainHandler(tornado.web.RequestHandler):
 
 
 class DataHandler(tornado.web.RequestHandler):
-    @tornado.web.asynchronous
     @gen.coroutine
-    def get(self):
-        args = self.request.arguments
-        if len(args) == 0:
-            self.write("\nError!\n")
+    def getDirectoryResults(self, results, specifier, gitHash, buildID):
+        """Retreieve coverage data for directories.
 
-        query = {}
-        cursor = None # Cursor with which to traverse query results
-        result = None # Dictionary to store query result
-        gitHash = args.get("gitHash")[0]
-        buildID = args.get("buildID")[0]
+        results - dictionary in which results are stored
+        specifier - e.g. "line" or "func"
+        """
+        if specifier == "line":
+            # Fill pipeline with gitHash and buildID info
+            pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
+            pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
 
-        # Fill pipeline with gitHash and buildID info
-        pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
-        pipelines.file_func_pipeline[0]["$match"]["gitHash"] = gitHash 
-        pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
-        pipelines.file_func_pipeline[0]["$match"]["buildID"] = buildID 
-      
-        if "dir" in args:
-            directory = urllib.unquote(args.get("dir")[0])
-
-            # Fill pipeline with directory info
-            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
-            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
-           
             # Get line results
             results = {} # Store coverage data
             cursor = yield self.application.collection.aggregate(pipelines.file_line_pipeline, cursor={})
@@ -164,6 +157,11 @@ class DataHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["file"]] = {}
                     results[bsonobj["_id"]["file"]]["lineCovCount"] = amountAdded
                     results[bsonobj["_id"]["file"]]["lineCount"] = 1
+
+        else:
+            # Fill pipeline with gitHash and buildID info
+            pipelines.file_func_pipeline[0]["$match"]["gitHash"] = gitHash 
+            pipelines.file_func_pipeline[0]["$match"]["buildID"] = buildID 
 
             # Get function results
             cursor = yield self.application.collection.aggregate(pipelines.file_func_pipeline, cursor={})
@@ -194,6 +192,35 @@ class DataHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["file"]]["funcCovCount"] = amountAdded
                     results[bsonobj["_id"]["file"]]["funcCount"] = 1
 
+
+        raise gen.Return(results)
+
+    @tornado.web.asynchronous
+    @gen.coroutine
+    def get(self):
+        args = self.request.arguments
+        if len(args) == 0:
+            self.write("\nError!\n")
+
+        query = {}
+        cursor = None # Cursor with which to traverse query results
+        result = None # Dictionary to store query result
+        gitHash = urllib.unquote(args.get("gitHash")[0])
+        buildID = urllib.unquote(args.get("buildID")[0])
+
+      
+        if "dir" in args:
+            directory = urllib.unquote(args.get("dir")[0])
+
+            # Fill pipeline with directory info
+            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+           
+            # Get line results
+            results = {} # Store coverage data
+            results = yield self.getDirectoryResults(results, "line", gitHash, buildID)
+            results = yield self.getDirectoryResults(results, "func", gitHash, buildID)
+
             # Add line and function coverage percentage data
             for key in results.keys():
                 if "lineCount" in results[key]:
@@ -202,10 +229,7 @@ class DataHandler(tornado.web.RequestHandler):
                     results[key]["funcCovPercentage"] = round(float(results[key]["funcCovCount"])/results[key]["funcCount"] * 100, 2)
 
             # Get branch name
-            cursor = self.application.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
-            branch = ""
-            while (yield cursor.fetch_next):
-                branch = cursor.next_object()["branch"]
+            branch = yield self.application.getBranchName(buildID, gitHash)
 
             self.render("templates/data.html", results=results, directory=directory, 
                         gitHash=gitHash, buildID=buildID, clip=len(directory), 
@@ -217,17 +241,22 @@ class DataHandler(tornado.web.RequestHandler):
                 return
             
             # Generate line coverage results
-            gitHash = args.get("gitHash")[0]
-            buildID = args.get("buildID")[0]
-            fileName = args.get("file")[0]
+            gitHash = urllib.unquote(args.get("gitHash")[0])
+            buildID = urllib.unquote(args.get("buildID")[0])
+            fileName = urllib.unquote(args.get("file")[0])
 
             if "testName" in args:
-                testName = args.get("testName")
+                testName = urllib.unquote(args.get("testName"))
                 pipeline = [{"$match":{"buildID": buildID, "gitHash": gitHash, "file": fileName, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
    
             else:
-                pipeline = [{"$match":{"buildID": buildID, "gitHash": gitHash, "file": fileName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
-       
+                # Fill pipeline with gitHash, buildID, and fileName info
+                pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
+                pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
+                pipelines.file_line_pipeline[0]["$match"]["file"] = fileName
+
+                pipeline = pipelines.file_line_pipeline 
+
             cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
             result = {}
             result["counts"] = {}
@@ -239,29 +268,27 @@ class DataHandler(tornado.web.RequestHandler):
                     result["counts"][bsonobj["_id"]["line"]] = bsonobj["count"] 
                 else:
                     result["counts"][bsonobj["_id"]["line"]] += bsonobj["count"]
-                        
+            # Check if result["counts"] == {} 
+
             if "counts" in args and args["counts"][0] == "true":
                 # Send only counts data to client
                 self.write(json.dumps(result))
 
             else: 
                 # Request file from github
-                fileName = args["file"][0]
-                (fileContent, lineCount) = __request_gitHub_file__("", gitHash, fileName)
+                fileName = urllib.unquote(args["file"][0])
+                (fileContent, lineCount) = self.application.requestGitHubFile("", gitHash, fileName)
                 if fileContent == "NULL":
                     print "Error!"
                     return
 
                 # Get branch name
-                cursor = self.application.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
-                branch = ""
-                while (yield cursor.fetch_next):
-                    branch = cursor.next_object()["branch"]
+                branch = yield self.application.getBranchName(buildID, gitHash)
 
-                    self.render("templates/file.html", buildID=buildID, 
-                                gitHash=gitHash, fileName=fileName, 
-                                fileContent=fileContent, lineCount=lineCount,
-                                branch=branch)
+                self.render("templates/file.html", buildID=buildID, 
+                            gitHash=gitHash, fileName=fileName, 
+                            fileContent=fileContent, lineCount=lineCount,
+                            branch=branch)
 
 
 
@@ -300,7 +327,6 @@ class CacheHandler(tornado.web.RequestHandler):
         self.json_args["lineCount"] = total
         self.json_args["lineCovCount"] = total-noexecTotal
         self.json_args["lineCovPercentage"] = round(float(total-noexecTotal)/total * 100, 2)
-
 
         # Generate function results
         pipeline = [{"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"},
@@ -373,8 +399,8 @@ class ReportHandler(tornado.web.RequestHandler):
             if args.get("gitHash") == None or args.get("buildID") == None:
                 self.write("Error!\n")
                 return
-            gitHash = args.get("gitHash")[0]
-            buildID = args.get("buildID")[0]
+            gitHash = urllib.unquote(args.get("gitHash")[0])
+            buildID = urllib.unquote(args.get("buildID")[0])
             query = {"_id": {"gitHash": gitHash, "buildID": buildID}}
             cursor = self.application.metaCollection.find(query)
             metaResult = None
@@ -395,10 +421,7 @@ class ReportHandler(tornado.web.RequestHandler):
                 dirResults.append(bsonobj)
 
             # Get branch name
-            cursor = self.application.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
-            branch = ""
-            while (yield cursor.fetch_next):
-                branch = cursor.next_object()["branch"]
+            branch = yield self.application.getBranchName(buildID, gitHash)
 
             self.render("templates/directory.html", result=metaResult, 
                         dirResults=dirResults, clip=len("src/mongo/"), 
@@ -438,7 +461,7 @@ class CompareHandler(tornado.web.RequestHandler):
             if not "buildID2" in args:
                 return
 
-            buildIDs = [args["buildID1"][0], args["buildID2"][0]]
+            buildIDs = [urllib.unquote(args["buildID1"][0]), urllib.unquote(args["buildID2"][0])]
             buildID1 = buildIDs[0]
             buildID2 = buildIDs[1]
 
@@ -457,11 +480,11 @@ class CompareHandler(tornado.web.RequestHandler):
             elif "file" in args:
                 buildID1 = args["buildID1"][0] 
                 buildID2 = args["buildID2"][0]
-                gitHash1, date = __parseBuildID__(buildID1)
-                gitHash2, date = __parseBuildID__(buildID2)
+                gitHash1, date = self.application.parseBuildID(buildID1)
+                gitHash2, date = self.application.parseBuildID(buildID2)
                 fileName = urllib.unquote(args.get("file")[0])
-                fileContent1, lineCount1 = __requestGitHubFile__("A", gitHash1, fileName)
-                fileContent2, lineCount2 = __requestGitHubFile__("B", gitHash2, fileName)
+                fileContent1, lineCount1 = self.application.requestGitHubFile("A", gitHash1, fileName)
+                fileContent2, lineCount2 = self.application.requestGitHubFile("B", gitHash2, fileName)
 
                 self.render("templates/fileCompare.html", buildID1=buildID1, buildID2=buildID2, fileContent1=fileContent1, fileContent2=fileContent2, fileName=fileName, gitHash1=gitHash1, gitHash2=gitHash2, lineCount1=lineCount1, lineCount2=lineCount2)
            

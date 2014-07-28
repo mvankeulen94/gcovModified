@@ -42,7 +42,7 @@
      <tbody>
       {% for dirResult in dirResults %}
       <tr>
-       <td><a href="/data?buildID={{ result['_id']['buildID'] }}&gitHash={{ result['_id']['gitHash'] }}&dir={{ url_escape(dirResult['_id']['dir']) }}">{{ dirResult['_id']['dir'][clip:] }}</a></td>
+       <td><a href="/data?buildID={{ url_escape(result['_id']['buildID']) }}&gitHash={{ url_escape(result['_id']['gitHash']) }}&dir={{ url_escape(dirResult['_id']['dir']) }}">{{ dirResult['_id']['dir'][clip:] }}</a></td>
        {% if 'lineCount' in dirResult %}
        <td>{{ dirResult['lineCovCount'] }}/{{ dirResult['lineCount'] }}</td>
        <td>{{ dirResult['lineCovPercentage'] }}</td>

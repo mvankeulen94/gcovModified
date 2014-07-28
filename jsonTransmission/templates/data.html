@@ -42,7 +42,7 @@
      <tbody>
       {% for key in sorted(results.keys()) %}
       <tr>
-       <td><a href="/data?buildID={{ buildID }}&gitHash={{ gitHash }}&file={{ url_escape(key) }}">{{ key[clip:] }}</a></td>
+       <td><a href="/data?buildID={{ url_escape(buildID) }}&gitHash={{ url_escape(gitHash) }}&file={{ url_escape(key) }}">{{ key[clip:] }}</a></td>
        {% if 'lineCount' in results[key] %}
        <td>{{ results[key]['lineCovCount'] }}/{{ results[key]['lineCount'] }}</td>
        <td>{{ results[key]['lineCovPercentage'] }}</td>
