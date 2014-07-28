@@ -1,9 +1,6 @@
 <html>
  <head>
   <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>            
-   
-  <!-- Latest compiled and minified JavaScript -->
-  <link rel="stylesheet" href="/static/mongostrap.min.css">
   <script>
      $(window).resize(function () { 
         $('body').css('padding-top', parseInt($('#nav').css("height"))+10);
@@ -16,22 +13,19 @@
   <style>
 
    table.highlighttable {
-       height: auto;
+       font-size: 10px;
    }
 
    div.file1 {
        width: 50%;
        float: left;
+       overflow-x: scroll;
    }
 
    div.file2 {
        width: 50%;
        float: right;
-   }
-
-   div.container-fluid {
        overflow-x: scroll;
-       min-width: 1800px;
    }
 
   </style>
