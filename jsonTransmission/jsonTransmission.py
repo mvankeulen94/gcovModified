@@ -127,16 +127,17 @@ class MainHandler(tornado.web.RequestHandler):
 
 class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
-    def getDirectoryResults(self, results, specifier, gitHash, buildID):
+    def getDirectoryResults(self, results, specifier, gitHash, buildID, directory):
         """Retreieve coverage data for directories.
 
         results - dictionary in which results are stored
         specifier - e.g. "line" or "func"
         """
         if specifier == "line":
-            # Fill pipeline with gitHash and buildID info
+            # Fill pipeline with gitHash, buildID, and directory info
             pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
             pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
+            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
 
             # Get line results
             results = {} # Store coverage data
@@ -159,9 +160,10 @@ class DataHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["file"]]["lineCount"] = 1
 
         else:
-            # Fill pipeline with gitHash and buildID info
+            # Fill pipeline with gitHash, buildID, and directory info
             pipelines.file_func_pipeline[0]["$match"]["gitHash"] = gitHash 
             pipelines.file_func_pipeline[0]["$match"]["buildID"] = buildID 
+            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
 
             # Get function results
             cursor = yield self.application.collection.aggregate(pipelines.file_func_pipeline, cursor={})
@@ -192,7 +194,6 @@ class DataHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["file"]]["funcCovCount"] = amountAdded
                     results[bsonobj["_id"]["file"]]["funcCount"] = 1
 
-
         raise gen.Return(results)
 
     @tornado.web.asynchronous
@@ -208,18 +209,17 @@ class DataHandler(tornado.web.RequestHandler):
         gitHash = urllib.unquote(args.get("gitHash")[0])
         buildID = urllib.unquote(args.get("buildID")[0])
 
-      
         if "dir" in args:
             directory = urllib.unquote(args.get("dir")[0])
-
-            # Fill pipeline with directory info
-            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
-            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
            
             # Get line results
             results = {} # Store coverage data
-            results = yield self.getDirectoryResults(results, "line", gitHash, buildID)
-            results = yield self.getDirectoryResults(results, "func", gitHash, buildID)
+            results = yield self.getDirectoryResults(results, "line", gitHash, buildID, directory)
+            results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory)
+
+            if not results:
+                self.render("templates/error.html", errorSources=["Git hash", "Build ID", "Directory"])
+                return
 
             # Add line and function coverage percentage data
             for key in results.keys():
@@ -230,6 +230,10 @@ class DataHandler(tornado.web.RequestHandler):
 
             # Get branch name
             branch = yield self.application.getBranchName(buildID, gitHash)
+
+            if not branch:
+                self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
+                return
 
             self.render("templates/data.html", results=results, directory=directory, 
                         gitHash=gitHash, buildID=buildID, clip=len(directory), 
@@ -278,12 +282,17 @@ class DataHandler(tornado.web.RequestHandler):
                 # Request file from github
                 fileName = urllib.unquote(args["file"][0])
                 (fileContent, lineCount) = self.application.requestGitHubFile("", gitHash, fileName)
+
                 if fileContent == "NULL":
-                    print "Error!"
+                    self.render("templates/error.html", errorSources=["Build ID", "Git hash", "File name"])
                     return
 
                 # Get branch name
                 branch = yield self.application.getBranchName(buildID, gitHash)
+
+                if not branch:
+                    self.render("templates/error.html", errorSources=["Git hash", "Build ID"])
+                    return
 
                 self.render("templates/file.html", buildID=buildID, 
                             gitHash=gitHash, fileName=fileName, 
@@ -395,6 +404,7 @@ class ReportHandler(tornado.web.RequestHandler):
                 results.append(bsonobj)
 
             self.render("templates/report.html", results=results)
+
         else:    
             if args.get("gitHash") == None or args.get("buildID") == None:
                 self.write("Error!\n")
@@ -410,7 +420,11 @@ class ReportHandler(tornado.web.RequestHandler):
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 metaResult = bsonobj
-           
+          
+            if not metaResult:
+                self.render("templates/error.html", errorSources=["Git hash", "Build ID"])
+                return
+
             query = {"_id.gitHash": gitHash, "_id.buildID": buildID}
             cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
 
@@ -422,6 +436,10 @@ class ReportHandler(tornado.web.RequestHandler):
 
             # Get branch name
             branch = yield self.application.getBranchName(buildID, gitHash)
+
+            if not branch:
+                self.render("templates/error.html", errorSources=["Git hash", "Build ID"])
+                return
 
             self.render("templates/directory.html", result=metaResult, 
                         dirResults=dirResults, clip=len("src/mongo/"), 
@@ -472,6 +490,11 @@ class CompareHandler(tornado.web.RequestHandler):
 
                 # Get coverage comparison data
                 results = yield self.getComparisonData(buildIDs, directory=directory)
+
+                if not results:
+                    self.render("templates/error.html", errorSources=["Build ID 1", "Build ID 2", "Directory"])
+                    return
+
                 self.addCoverageComparison(results)
 
                 self.render("templates/dirCompare.html", buildID1=buildID1, buildID2=buildID2, results=results, directory=directory)
@@ -492,6 +515,11 @@ class CompareHandler(tornado.web.RequestHandler):
             else:
                 # Get coverage comparison data
                 results = yield self.getComparisonData(buildIDs)
+
+                if not results:
+                    self.render("templates/error.html", errorSources=["Build ID 1", "Build ID 2"])
+                    return
+
                 self.addCoverageComparison(results)
     
                 self.render("templates/buildCompare.html", buildID1=buildID1, 
