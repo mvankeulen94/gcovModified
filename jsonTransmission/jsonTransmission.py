@@ -27,49 +27,6 @@ import urllib
 import string
 
 
-def __requestGitHubFile__(identifier, gitHash, fileName, token):
-    """Retrieve file from gitHub and add syntax highlighting.
-
-    Return highlighted file content and line count of content.
-    """
-    owner = "mongodb"
-    repo = "mongo"
-    url = ("https://api.github.com/repos/" + owner + "/" + repo + 
-           "/contents/" + fileName + "?ref=" + gitHash)
-    headers = {"Authorization": "token " + token}
-    http_client = tornado.httpclient.HTTPClient()
-    request = tornado.httpclient.HTTPRequest(url=url, headers=headers,
-                                             user_agent="Maria's API Test")
-    try:
-        response = http_client.fetch(request)
-        responseDict = json.loads(response.body)
-        content = base64.b64decode(responseDict["content"])
-        fileContent = highlight(content, CppLexer(), 
-                                CoverageFormatter(identifier))
-        lineCount = string.count(content, "\n")
-
-    except tornado.httpclient.HTTPError as e:
-        return "NULL", "NULL"
-    
-    http_client.close()
-    return fileContent, lineCount
-
-
-def __parseBuildID__(buildID):
-    """Extract information from buildID"""
-    buildInfo = buildID.split("_")
-    userName = buildInfo[0]
-    repo = buildInfo[1]
-    version = buildInfo[2]
-    edition = buildInfo[3] + " " + buildInfo[4]
-    gitHash = buildInfo[5]
-    dateInfo = [int(num) for num in buildInfo[6:]]
-    date = datetime.datetime(dateInfo[0], dateInfo[1], dateInfo[2],
-                             dateInfo[3], dateInfo[4])
-
-    return gitHash, date
-
-
 class Application(tornado.web.Application):
     def __init__(self):
         configFile = open("config.conf", "r")
@@ -137,6 +94,20 @@ class Application(tornado.web.Application):
         
         http_client.close()
         return fileContent, lineCount
+
+    def parseBuildID(self, buildID):
+        """Extract information from buildID"""
+        buildInfo = buildID.split("_")
+        userName = buildInfo[0]
+        repo = buildInfo[1]
+        version = buildInfo[2]
+        edition = buildInfo[3] + " " + buildInfo[4]
+        gitHash = buildInfo[5]
+        dateInfo = [int(num) for num in buildInfo[6:]]
+        date = datetime.datetime(dateInfo[0], dateInfo[1], dateInfo[2],
+                                 dateInfo[3], dateInfo[4])
+    
+        return gitHash, date
 
     
 class MainHandler(tornado.web.RequestHandler):
@@ -509,8 +480,8 @@ class CompareHandler(tornado.web.RequestHandler):
             elif "file" in args:
                 buildID1 = args["buildID1"][0] 
                 buildID2 = args["buildID2"][0]
-                gitHash1, date = __parseBuildID__(buildID1)
-                gitHash2, date = __parseBuildID__(buildID2)
+                gitHash1, date = self.application.parseBuildID(buildID1)
+                gitHash2, date = self.application.parseBuildID(buildID2)
                 fileName = urllib.unquote(args.get("file")[0])
                 fileContent1, lineCount1 = self.application.requestGitHubFile("A", gitHash1, fileName)
                 fileContent2, lineCount2 = self.application.requestGitHubFile("B", gitHash2, fileName)
