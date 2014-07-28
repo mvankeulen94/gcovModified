@@ -127,8 +127,8 @@ class DataHandler(tornado.web.RequestHandler):
         query = {}
         cursor = None # Cursor with which to traverse query results
         result = None # Dictionary to store query result
-        gitHash = args.get("gitHash")[0]
-        buildID = args.get("buildID")[0]
+        gitHash = urllib.unquote(args.get("gitHash")[0])
+        buildID = urllib.unquote(args.get("buildID")[0])
 
         # Fill pipeline with gitHash and buildID info
         pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
@@ -215,9 +215,9 @@ class DataHandler(tornado.web.RequestHandler):
                 return
             
             # Generate line coverage results
-            gitHash = args.get("gitHash")[0]
-            buildID = args.get("buildID")[0]
-            fileName = args.get("file")[0]
+            gitHash = urllib.unquote(args.get("gitHash")[0])
+            buildID = urllib.unquote(args.get("buildID")[0])
+            fileName = urllib.unquote(args.get("file")[0])
 
             if "testName" in args:
                 testName = args.get("testName")
@@ -244,7 +244,7 @@ class DataHandler(tornado.web.RequestHandler):
 
             else: 
                 # Request file from github
-                fileName = args["file"][0]
+                fileName = urllib.unquote(args["file"][0])
                 (fileContent, lineCount) = __requestGitHubFile__("", gitHash, fileName, self.application.token)
                 if fileContent == "NULL":
                     print "Error!"
@@ -371,8 +371,8 @@ class ReportHandler(tornado.web.RequestHandler):
             if args.get("gitHash") == None or args.get("buildID") == None:
                 self.write("Error!\n")
                 return
-            gitHash = args.get("gitHash")[0]
-            buildID = args.get("buildID")[0]
+            gitHash = urllib.unquote(args.get("gitHash")[0])
+            buildID = urllib.unquote(args.get("buildID")[0])
             query = {"_id": {"gitHash": gitHash, "buildID": buildID}}
             cursor = self.application.metaCollection.find(query)
             metaResult = None
@@ -436,7 +436,7 @@ class CompareHandler(tornado.web.RequestHandler):
             if not "buildID2" in args:
                 return
 
-            buildIDs = [args["buildID1"][0], args["buildID2"][0]]
+            buildIDs = [urllib.unquote(args["buildID1"][0]), urllib.unquote(args["buildID2"][0])]
             buildID1 = buildIDs[0]
             buildID2 = buildIDs[1]
 
