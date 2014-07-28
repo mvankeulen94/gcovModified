@@ -127,7 +127,7 @@ class MainHandler(tornado.web.RequestHandler):
 
 class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
-    def getDirectoryResults(self, results, specifier):
+    def getDirectoryResults(self, results, specifier, gitHash, buildID):
         """Retreieve coverage data for directories.
 
         results - dictionary in which results are stored
@@ -218,8 +218,8 @@ class DataHandler(tornado.web.RequestHandler):
            
             # Get line results
             results = {} # Store coverage data
-            results = yield self.getDirectoryResults(results, "line")
-            results = yield self.getDirectoryResults(results, "func")
+            results = yield self.getDirectoryResults(results, "line", gitHash, buildID)
+            results = yield self.getDirectoryResults(results, "func", gitHash, buildID)
 
             # Add line and function coverage percentage data
             for key in results.keys():
