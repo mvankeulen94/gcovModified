@@ -25,6 +25,7 @@ import pipelines
 
 import urllib
 import string
+import copy
 
 
 class Application(tornado.web.Application):
@@ -397,12 +398,16 @@ class CacheHandler(tornado.web.RequestHandler):
             print "Error:", e
 
         # Generate coverage data by directory
-        pipelines.line_pipeline[0]["$match"]["gitHash"] = self.json_args["_id"]["gitHash"]
-        pipelines.function_pipeline[0]["$match"]["gitHash"] = self.json_args["_id"]["gitHash"]
-        pipelines.line_pipeline[0]["$match"]["buildID"] = self.json_args["_id"]["buildID"]
-        pipelines.function_pipeline[0]["$match"]["buildID"] = self.json_args["_id"]["buildID"]
+        line_pipeline = copy.copy(pipelines.line_pipeline)
+        function_pipeline = copy.copy(pipelines.function_pipeline)
 
-        cursor =  yield self.application.collection.aggregate(pipelines.line_pipeline, cursor={})
+        match = {"$match": {"buildID": self.json_args["_id"]["buildID"], "gitHash": self.json_args["_id"]["gitHash"],
+                            "file": re.compile("^src\/mongo")}}
+
+        line_pipeline.insert(0, match)
+        function_pipeline.insert(0, match)
+
+        cursor =  yield self.application.collection.aggregate(line_pipeline, cursor={})
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
             
@@ -412,7 +417,7 @@ class CacheHandler(tornado.web.RequestHandler):
             bsonobj["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
             result = yield self.application.covCollection.update({"_id.buildID": buildID, "_id.gitHash": gitHash, "_id.dir": bsonobj["_id"]["dir"]}, bsonobj, upsert=True)
         
-        cursor =  yield self.application.collection.aggregate(pipelines.function_pipeline, cursor={})
+        cursor =  yield self.application.collection.aggregate(function_pipeline, cursor={})
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
 
@@ -469,15 +474,19 @@ class ReportHandler(tornado.web.RequestHandler):
             if "testName" in args:
                 testName = urllib.unquote(args.get("testName")[0])
                 additionalInfo["testName"] = testName
-                # shallow copy pipeline and add match object to it here
-                # Generate coverage data by directory
-                pipelines.line_pipeline[0]["$match"]["gitHash"] = gitHash
-                pipelines.function_pipeline[0]["$match"]["gitHash"] = gitHash
-                pipelines.line_pipeline[0]["$match"]["buildID"] = buildID 
-                pipelines.function_pipeline[0]["$match"]["buildID"] = buildID 
-                pipelines.function_pipeline[0]["$match"]["testName"] = testName 
 
-                cursor =  yield self.application.collection.aggregate(pipelines.line_pipeline, cursor={})
+                # Set up pipelines
+                line_pipeline = copy.copy(pipelines.line_pipeline)
+                function_pipeline = copy.copy(pipelines.function_pipeline)
+                match = {"$match": {"buildID": buildID, "gitHash": gitHash, 
+                            "testName": testName,
+                            "file": re.compile("^src\/mongo")}}
+
+                line_pipeline.insert(0, match)
+                function_pipeline.insert(0, match)
+                
+                # Generate coverage data by directory
+                cursor =  yield self.application.collection.aggregate(line_pipeline, cursor={})
                 # check if results is still {}
                 while (yield cursor.fetch_next):
                     bsonobj = cursor.next_object()
@@ -492,7 +501,7 @@ class ReportHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["dir"]]["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
 
 
-                cursor =  yield self.application.collection.aggregate(pipelines.function_pipeline, cursor={})
+                cursor =  yield self.application.collection.aggregate(function_pipeline, cursor={})
                 while (yield cursor.fetch_next):
                     bsonobj = cursor.next_object()
         

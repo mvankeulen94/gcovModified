@@ -2,13 +2,6 @@ import re
 
 function_pipeline = [
 	{
-		"$match" : {
-			"buildID" : "",
-			"gitHash" : "",
-			"file" : re.compile("^src\/mongo") 
-		}
-	},
-	{
 		"$project" : {
 			"file" : 1,
 			"gitHash" : 1,
@@ -77,13 +70,6 @@ function_pipeline = [
 ]
 
 line_pipeline = [
-	{
-		"$match" : {
-			"buildID" : "",
-			"gitHash" : "",
-			"file" : re.compile("^src\/mongo")
-		}
-	},
 	{
 		"$project" : {
 			"file" : 1,
