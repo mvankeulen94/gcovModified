@@ -259,3 +259,30 @@ file_comp_pipeline = [
 
 ]
 
+testname_pipeline = [
+	{
+		"$match" : {
+			"buildID" : "",
+			"gitHash" : "",
+			"file" : re.compile("^src\/mongo") 
+		}
+	},
+	{
+		"$project" : {
+			"buildID" : 1,
+			"gitHash" : 1,
+			"testName" : 1
+		}
+	},
+	{
+		"$group" : {
+			"_id" : {
+				"gitHash" : "$gitHash",
+				"buildID" : "$buildID"
+			},
+			"testNames" : {
+				"$addToSet" : "$testName"
+			}
+		}
+	}
+]

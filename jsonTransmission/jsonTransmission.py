@@ -354,10 +354,18 @@ class CacheHandler(tornado.web.RequestHandler):
         self.json_args["funcCount"] = total
         self.json_args["funcCovCount"] = total-noexec
         self.json_args["funcCovPercentage"] = round(float(total-noexec)/total * 100, 2)
-  
+
+        # Retrieve test name list
+        pipelines.testname_pipeline[0]["$match"]["gitHash"] = self.json_args["_id"]["gitHash"]
+        pipelines.testname_pipeline[0]["$match"]["buildID"] = self.json_args["_id"]["buildID"]
+        cursor =  yield self.application.collection.aggregate(pipelines.testname_pipeline, cursor={})
+        while (yield cursor.fetch_next):
+            bsonobj = cursor.next_object()
+            self.json_args["testNames"] = bsonobj["testNames"]
+
         # Insert meta-information
         try:
-            result = yield self.application.metaCollection.insert(self.json_args)
+            result = yield self.application.metaCollection.update({"_id.buildID": buildID, "_id.gitHash": gitHash}, self.json_args, upsert=True)
         except tornado.httpclient.HTTPError as e:
             print "Error:", e
 
@@ -375,7 +383,7 @@ class CacheHandler(tornado.web.RequestHandler):
             lineCount = bsonobj["lineCount"]
             lineCovCount = bsonobj["lineCovCount"]
             bsonobj["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
-            result = yield self.application.covCollection.insert(bsonobj)
+            result = yield self.application.covCollection.update({"_id.buildID": buildID, "_id.gitHash": gitHash, "_id.dir": bsonobj["_id"]["dir"]}, bsonobj, upsert=True)
         
         cursor =  yield self.application.collection.aggregate(pipelines.function_pipeline, cursor={})
         while (yield cursor.fetch_next):
