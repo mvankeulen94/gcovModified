@@ -447,22 +447,25 @@ class ReportHandler(tornado.web.RequestHandler):
 
             gitHash = urllib.unquote(args.get("gitHash")[0])
             buildID = urllib.unquote(args.get("buildID")[0])
-            query = {"_id": {"gitHash": gitHash, "buildID": buildID}}
-            cursor = self.application.metaCollection.find(query)
-            metaResult = None
-            dirResults = []
-            
-            # Get summary results
-            while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                metaResult = bsonobj
-          
-            if not metaResult:
-                self.render("templates/error.html", errorSources=["Git hash", "Build ID"])
+            results = {}
+            clip=len("src/mongo/")
+
+            # Get meta document 
+            doc = yield self.application.getMetaDocument(buildID, gitHash)
+    
+            if not doc:
+                self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
                 return
 
-            query = {"_id.gitHash": gitHash, "_id.buildID": buildID}
+            # Get branch name
+            branch = doc["branch"]
 
+            # Get test names
+            testNames = doc["testNames"]
+            additionalInfo = {"gitHash": gitHash, "buildID": buildID,
+                              "branch": branch, "testNames": testNames, 
+                              "clip": clip}
+            
             if "testName" in args:
                 testName = urllib.unquote(args.get("testName")[0])
                 # shallow copy pipeline and add match object to it here
@@ -474,7 +477,6 @@ class ReportHandler(tornado.web.RequestHandler):
                 pipelines.function_pipeline[0]["$match"]["testName"] = testName 
 
                 cursor =  yield self.application.collection.aggregate(pipelines.line_pipeline, cursor={})
-                results = {}
                 # check if results is still {}
                 while (yield cursor.fetch_next):
                     bsonobj = cursor.next_object()
@@ -501,49 +503,35 @@ class ReportHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["dir"]]["funcCount"] = bsonobj["funcCount"]
                     results[bsonobj["_id"]["dir"]]["funcCovCount"] = bsonobj["funcCovCount"]
                     results[bsonobj["_id"]["dir"]]["funcCovPercentage"] = round(float(funcCovCount)/funcCount * 100, 2)
-                    ###### TO DELETE LATER
-                # Get meta document 
-                doc = yield self.application.getMetaDocument(buildID, gitHash)
-    
-                if not doc:
-                    self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
-                    return
-    
-                # Get branch name
-                branch = doc["branch"]
-    
-                # Get test names
-                testNames = doc["testNames"]
-    
-                self.render("templates/directory.html", result=metaResult, 
-                            dirResults=results, clip=len("src/mongo/"), 
-                            branch=branch, testNames=testNames, buildID=buildID, gitHash=gitHash)
-
 
             else:
+                query = {"_id.buildID": buildID, "_id.gitHash": gitHash}
                 cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
             
-            # Get directory results
-            while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                dirResults.append(bsonobj)
+                # Get directory results
+                while (yield cursor.fetch_next):
+                    bsonobj = cursor.next_object()
 
-            # Get meta document 
-            doc = yield self.application.getMetaDocument(buildID, gitHash)
+                    if not bsonobj["_id"]["dir"] in results:
+                        results[bsonobj["_id"]["dir"]] = {}
+                    
+                    # Add line count data
+                    lineCount = bsonobj["lineCount"]
+                    lineCovCount = bsonobj["lineCovCount"]
+                    results[bsonobj["_id"]["dir"]]["lineCount"] = lineCount 
+                    results[bsonobj["_id"]["dir"]]["lineCovCount"] = lineCovCount 
+                    results[bsonobj["_id"]["dir"]]["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
 
-            if not doc:
-                self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
-                return
+                    # Add function count data
+                    funcCount = bsonobj["funcCount"]
+                    funcCovCount = bsonobj["funcCovCount"]
+                    results[bsonobj["_id"]["dir"]]["funcCount"] = bsonobj["funcCount"]
+                    results[bsonobj["_id"]["dir"]]["funcCovCount"] = bsonobj["funcCovCount"]
+                    results[bsonobj["_id"]["dir"]]["funcCovPercentage"] = round(float(funcCovCount)/funcCount * 100, 2)
 
-            # Get branch name
-            branch = doc["branch"]
 
-            # Get test names
-            testNames = doc["testNames"]
-
-            self.render("templates/directory.html", result=metaResult, 
-                        dirResults=dirResults, clip=len("src/mongo/"), 
-                        branch=branch, testNames=testNames)
+            self.render("templates/directory.html", 
+                        dirResults=results, additionalInfo=additionalInfo)
 
 
 class CoverageFormatter(HtmlFormatter):

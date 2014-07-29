@@ -1,6 +1,6 @@
 {% extends "tableLayout.html" %}
 {% block header %}
-   <title>{{ result['_id']['buildID'] }}, {{ result['_id']['gitHash'] }}</title>
+   <title>{{ additionalInfo['buildID'] }}, {{ additionalInfo['gitHash'] }}</title>
 {% end %}
 {% block body %}
    <div class="table-responsive">
@@ -14,23 +14,23 @@
      <tbody>
       <tr>
        <td>Build ID</td>
-       <td>{{ result['_id']['buildID'] }}</td>
+       <td>{{ additionalInfo['buildID'] }}</td>
       </tr>
       <tr>
        <td>Git hash</td>
-       <td>{{ result['_id']['gitHash'] }}</td>
+       <td>{{ additionalInfo['gitHash'] }}</td>
       </tr>
       <tr>
        <td>Branch</td>
-       <td>{{ branch }}</td>
+       <td>{{ additionalInfo['branch'] }}</td>
       </tr>
      </tbody>
     </table>
    </div>
    <div id="test-selection">
      <form action="/report" method="get">
-     <input value="{{ result['_id']['buildID'] }}" name="buildID" type="hidden">
-     <input value="{{ result['_id']['gitHash'] }}" name="gitHash" type="hidden">
+     <input value="{{ additionalInfo['buildID'] }}" name="buildID" type="hidden">
+     <input value="{{ additionalInfo['gitHash'] }}" name="gitHash" type="hidden">
      <div class="table-responsive">
       <table class="table table-striped">
        <thead>
@@ -42,7 +42,7 @@
        <tr>
         <td>
          <select class="form-control" name="testName">
-         {% for testName in testNames %}
+         {% for testName in additionalInfo['testNames'] %}
           <option value="{{ testName }}">{{ testName }}
           </option>
          {% end %}
@@ -74,7 +74,7 @@
      <tbody>
       {% for key in dirResults.keys() %}
       <tr>
-       <td><a href="/data?buildID={{ url_escape(buildID) }}&gitHash={{ url_escape(gitHash) }}&dir={{ url_escape(key) }}">{{ key[clip:] }}</a></td>
+       <td><a href="/data?buildID={{ url_escape(additionalInfo['buildID']) }}&gitHash={{ url_escape(additionalInfo['gitHash']) }}&dir={{ url_escape(key) }}">{{ key[additionalInfo['clip']:] }}</a></td>
        {% if 'lineCount' in dirResults[key] %}
        <td>{{ dirResults[key]['lineCovCount'] }}/{{ dirResults[key]['lineCount'] }}</td>
        <td>{{ dirResults[key]['lineCovPercentage'] }}</td>
