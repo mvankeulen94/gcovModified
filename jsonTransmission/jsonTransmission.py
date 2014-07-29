@@ -138,7 +138,7 @@ class DataHandler(tornado.web.RequestHandler):
             pipelines.file_func_pipeline[0]["$match"]["testName"] = kwargs["testName"]
 
         if "directory" in kwargs:
-            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + kwargs["directory"])
 
         else:
             pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^src\/mongo")
@@ -468,6 +468,7 @@ class ReportHandler(tornado.web.RequestHandler):
             
             if "testName" in args:
                 testName = urllib.unquote(args.get("testName")[0])
+                additionalInfo["testName"] = testName
                 # shallow copy pipeline and add match object to it here
                 # Generate coverage data by directory
                 pipelines.line_pipeline[0]["$match"]["gitHash"] = gitHash

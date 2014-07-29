@@ -24,6 +24,12 @@
        <td>Branch</td>
        <td>{{ additionalInfo['branch'] }}</td>
       </tr>
+      {% if 'testName' in additionalInfo %}
+      <tr>
+       <td>Test name</td>
+       <td>{{ additionalInfo['testName'] }}</td>
+      </tr>
+      {% end %}
      </tbody>
     </table>
    </div>
@@ -74,7 +80,7 @@
      <tbody>
       {% for key in dirResults.keys() %}
       <tr>
-       <td><a href="/data?buildID={{ url_escape(additionalInfo['buildID']) }}&gitHash={{ url_escape(additionalInfo['gitHash']) }}&dir={{ url_escape(key) }}">{{ key[additionalInfo['clip']:] }}</a></td>
+       <td><a href="/data?buildID={{ url_escape(additionalInfo['buildID']) }}&gitHash={{ url_escape(additionalInfo['gitHash']) }}&dir={{ url_escape(key) }}{% if 'testName' in additionalInfo %}&testName={{ url_escape(additionalInfo['testName'])}}{% end %}">{{ key[additionalInfo['clip']:] }}</a></td>
        {% if 'lineCount' in dirResults[key] %}
        <td>{{ dirResults[key]['lineCovCount'] }}/{{ dirResults[key]['lineCount'] }}</td>
        <td>{{ dirResults[key]['lineCovPercentage'] }}</td>
