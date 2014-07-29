@@ -58,14 +58,14 @@ class Application(tornado.web.Application):
         ],)
 
     @gen.coroutine
-    def getBranchName(self, buildID, gitHash):
-        # Get branch name
+    def getMetaDocument(self, buildID, gitHash):
+        """Retrieve meta document for buildID and gitHash."""
         cursor = self.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
-        branch = ""
+        doc = {}
         while (yield cursor.fetch_next):
-            branch = cursor.next_object()["branch"]
+            doc = cursor.next_object()
 
-        raise gen.Return(branch)
+        raise gen.Return(doc)
 
     def requestGitHubFile(self, identifier, gitHash, fileName):
         """Retrieve file from gitHub and add syntax highlighting.
@@ -127,17 +127,27 @@ class MainHandler(tornado.web.RequestHandler):
 
 class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
-    def getDirectoryResults(self, results, specifier, gitHash, buildID, directory):
+    def getDirectoryResults(self, results, specifier, gitHash, buildID, **kwargs):
         """Retreieve coverage data for directories.
 
         results - dictionary in which results are stored
         specifier - e.g. "line" or "func"
         """
+        if "testName" in kwargs:
+            pipelines.file_line_pipeline[0]["$match"]["testName"] = kwargs["testName"]
+            pipelines.file_func_pipeline[0]["$match"]["testName"] = kwargs["testName"]
+
+        if "directory" in kwargs:
+            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+
+        else:
+            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^src\/mongo")
+
+
         if specifier == "line":
-            # Fill pipeline with gitHash, buildID, and directory info
+            # Fill pipeline with gitHash and buildID info
             pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
             pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
-            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
 
             # Get line results
             results = {} # Store coverage data
@@ -160,10 +170,9 @@ class DataHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["file"]]["lineCount"] = 1
 
         else:
-            # Fill pipeline with gitHash, buildID, and directory info
+            # Fill pipeline with gitHash and buildID info
             pipelines.file_func_pipeline[0]["$match"]["gitHash"] = gitHash 
             pipelines.file_func_pipeline[0]["$match"]["buildID"] = buildID 
-            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
 
             # Get function results
             cursor = yield self.application.collection.aggregate(pipelines.file_func_pipeline, cursor={})
@@ -208,17 +217,41 @@ class DataHandler(tornado.web.RequestHandler):
         result = None # Dictionary to store query result
         gitHash = urllib.unquote(args.get("gitHash")[0])
         buildID = urllib.unquote(args.get("buildID")[0])
+        # Get meta document 
+        doc = yield self.application.getMetaDocument(buildID, gitHash)
 
-        if "dir" in args:
+        if not doc:
+            self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
+            return
+
+        # Get branch name
+        branch = doc["branch"]
+
+        # Gather additional info to be passed to template
+        additionalInfo = {"gitHash": gitHash, 
+                          "buildID": buildID, 
+                          "branch": branch}
+
+        if "dir" in args or "testName" in args and "dir" in args:
+
             directory = urllib.unquote(args.get("dir")[0])
-           
+            additionalInfo["directory"] = directory
+            additionalInfo["clip"] = len(directory)
+
             # Get line results
             results = {} # Store coverage data
-            results = yield self.getDirectoryResults(results, "line", gitHash, buildID, directory)
-            results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory)
+
+            if "testName" in args:
+                testName = urllib.unquote(args.get("testName")[0])
+                results = yield self.getDirectoryResults(results, "line", gitHash, buildID, directory=directory, testName=testName)
+                results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory=directory, testName=testName)
+                additionalInfo["testName"] = testName
+            
+            results = yield self.getDirectoryResults(results, "line", gitHash, buildID, directory=directory)
+            results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory=directory)
 
             if not results:
-                self.render("templates/error.html", errorSources=["Git hash", "Build ID", "Directory"])
+                self.render("templates/error.html", errorSources=["Git hash", "Build ID", "Directory", "Test name"])
                 return
 
             # Add line and function coverage percentage data
@@ -228,16 +261,7 @@ class DataHandler(tornado.web.RequestHandler):
                 if "funcCount" in results[key]:
                     results[key]["funcCovPercentage"] = round(float(results[key]["funcCovCount"])/results[key]["funcCount"] * 100, 2)
 
-            # Get branch name
-            branch = yield self.application.getBranchName(buildID, gitHash)
-
-            if not branch:
-                self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
-                return
-
-            self.render("templates/data.html", results=results, directory=directory, 
-                        gitHash=gitHash, buildID=buildID, clip=len(directory), 
-                        branch=branch)
+            self.render("templates/data.html", results=results, additionalInfo=additionalInfo)
 
         else:
             if not "file" in args:
@@ -287,12 +311,15 @@ class DataHandler(tornado.web.RequestHandler):
                     self.render("templates/error.html", errorSources=["Build ID", "Git hash", "File name"])
                     return
 
-                # Get branch name
-                branch = yield self.application.getBranchName(buildID, gitHash)
+                # Get meta document 
+                doc = yield self.application.getMetaDocument(buildID, gitHash)
 
-                if not branch:
-                    self.render("templates/error.html", errorSources=["Git hash", "Build ID"])
+                if not doc:
+                    self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
                     return
+
+                # Get branch name
+                branch = doc["branch"]
 
                 self.render("templates/file.html", buildID=buildID, 
                             gitHash=gitHash, fileName=fileName, 
@@ -415,8 +442,9 @@ class ReportHandler(tornado.web.RequestHandler):
 
         else:    
             if args.get("gitHash") == None or args.get("buildID") == None:
-                self.write("Error!\n")
+                self.render("templates/error.html", errorSources=["Git hash", "Build ID"])
                 return
+
             gitHash = urllib.unquote(args.get("gitHash")[0])
             buildID = urllib.unquote(args.get("buildID")[0])
             query = {"_id": {"gitHash": gitHash, "buildID": buildID}}
@@ -434,24 +462,88 @@ class ReportHandler(tornado.web.RequestHandler):
                 return
 
             query = {"_id.gitHash": gitHash, "_id.buildID": buildID}
-            cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
 
+            if "testName" in args:
+                testName = urllib.unquote(args.get("testName")[0])
+                # shallow copy pipeline and add match object to it here
+                # Generate coverage data by directory
+                pipelines.line_pipeline[0]["$match"]["gitHash"] = gitHash
+                pipelines.function_pipeline[0]["$match"]["gitHash"] = gitHash
+                pipelines.line_pipeline[0]["$match"]["buildID"] = buildID 
+                pipelines.function_pipeline[0]["$match"]["buildID"] = buildID 
+                pipelines.function_pipeline[0]["$match"]["testName"] = testName 
+
+                cursor =  yield self.application.collection.aggregate(pipelines.line_pipeline, cursor={})
+                results = {}
+                # check if results is still {}
+                while (yield cursor.fetch_next):
+                    bsonobj = cursor.next_object()
+
+                    if not bsonobj["_id"]["dir"] in results:
+                        results[bsonobj["_id"]["dir"]] = {}
+                    
+                    lineCount = bsonobj["lineCount"]
+                    lineCovCount = bsonobj["lineCovCount"]
+                    results[bsonobj["_id"]["dir"]]["lineCount"] = lineCount 
+                    results[bsonobj["_id"]["dir"]]["lineCovCount"] = lineCovCount 
+                    results[bsonobj["_id"]["dir"]]["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
+
+
+                cursor =  yield self.application.collection.aggregate(pipelines.function_pipeline, cursor={})
+                while (yield cursor.fetch_next):
+                    bsonobj = cursor.next_object()
+        
+                    if not bsonobj["_id"]["dir"] in results:
+                        results[bsonobj["_id"]["dir"]] = {}
+                    
+                    funcCount = bsonobj["funcCount"]
+                    funcCovCount = bsonobj["funcCovCount"]
+                    results[bsonobj["_id"]["dir"]]["funcCount"] = bsonobj["funcCount"]
+                    results[bsonobj["_id"]["dir"]]["funcCovCount"] = bsonobj["funcCovCount"]
+                    results[bsonobj["_id"]["dir"]]["funcCovPercentage"] = round(float(funcCovCount)/funcCount * 100, 2)
+                    ###### TO DELETE LATER
+                # Get meta document 
+                doc = yield self.application.getMetaDocument(buildID, gitHash)
+    
+                if not doc:
+                    self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
+                    return
+    
+                # Get branch name
+                branch = doc["branch"]
+    
+                # Get test names
+                testNames = doc["testNames"]
+    
+                self.render("templates/directory.html", result=metaResult, 
+                            dirResults=results, clip=len("src/mongo/"), 
+                            branch=branch, testNames=testNames, buildID=buildID, gitHash=gitHash)
+
+
+            else:
+                cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
             
             # Get directory results
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 dirResults.append(bsonobj)
 
-            # Get branch name
-            branch = yield self.application.getBranchName(buildID, gitHash)
+            # Get meta document 
+            doc = yield self.application.getMetaDocument(buildID, gitHash)
 
-            if not branch:
-                self.render("templates/error.html", errorSources=["Git hash", "Build ID"])
+            if not doc:
+                self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
                 return
+
+            # Get branch name
+            branch = doc["branch"]
+
+            # Get test names
+            testNames = doc["testNames"]
 
             self.render("templates/directory.html", result=metaResult, 
                         dirResults=dirResults, clip=len("src/mongo/"), 
-                        branch=branch)
+                        branch=branch, testNames=testNames)
 
 
 class CoverageFormatter(HtmlFormatter):

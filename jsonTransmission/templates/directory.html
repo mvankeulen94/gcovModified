@@ -27,6 +27,38 @@
      </tbody>
     </table>
    </div>
+   <div id="test-selection">
+     <form action="/report" method="get">
+     <input value="{{ result['_id']['buildID'] }}" name="buildID" type="hidden">
+     <input value="{{ result['_id']['gitHash'] }}" name="gitHash" type="hidden">
+     <div class="table-responsive">
+      <table class="table table-striped">
+       <thead>
+        <tr>
+         <th>Select Test Name</th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr>
+        <td>
+         <select class="form-control" name="testName">
+         {% for testName in testNames %}
+          <option value="{{ testName }}">{{ testName }}
+          </option>
+         {% end %}
+         </select>
+        </td>
+       </tr>
+       <tr>
+        <td>
+         <button type="submit" class="btn btn-default">Select!</button>
+        </td>
+       </tr>
+      </tbody>
+     </table>
+    </div>
+   </form>
+  </div>
   <div class="main">
    <div class="table-responsive">
     <table class="table table-striped">
@@ -40,19 +72,19 @@
       </tr>
      </thead>
      <tbody>
-      {% for dirResult in dirResults %}
+      {% for key in dirResults.keys() %}
       <tr>
-       <td><a href="/data?buildID={{ url_escape(result['_id']['buildID']) }}&gitHash={{ url_escape(result['_id']['gitHash']) }}&dir={{ url_escape(dirResult['_id']['dir']) }}">{{ dirResult['_id']['dir'][clip:] }}</a></td>
-       {% if 'lineCount' in dirResult %}
-       <td>{{ dirResult['lineCovCount'] }}/{{ dirResult['lineCount'] }}</td>
-       <td>{{ dirResult['lineCovPercentage'] }}</td>
+       <td><a href="/data?buildID={{ url_escape(buildID) }}&gitHash={{ url_escape(gitHash) }}&dir={{ url_escape(key) }}">{{ key[clip:] }}</a></td>
+       {% if 'lineCount' in dirResults[key] %}
+       <td>{{ dirResults[key]['lineCovCount'] }}/{{ dirResults[key]['lineCount'] }}</td>
+       <td>{{ dirResults[key]['lineCovPercentage'] }}</td>
        {% else %}
        <td>0 / 0</td> 
        <td>0.0</td>
        {% end %}
-       {% if 'funcCount' in dirResult %}
-       <td>{{ dirResult['funcCovCount'] }}/{{ dirResult['funcCount'] }}</td>
-       <td>{{ dirResult['funcCovPercentage'] }}</td>
+       {% if 'funcCount' in dirResults[key] %}
+       <td>{{ dirResults[key]['funcCovCount'] }}/{{ dirResults[key]['funcCount'] }}</td>
+       <td>{{ dirResults[key]['funcCovPercentage'] }}</td>
        {% else %}
        <td>0 / 0</td>
        <td>0.0</td>
