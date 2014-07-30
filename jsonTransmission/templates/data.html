@@ -1,6 +1,6 @@
 {% extends "tableLayout.html" %}
 {% block header %}
-   <title>Coverage Data For {{ directory }}</title>
+   <title>Coverage Data For {{ additionalInfo['directory'] }}</title>
 {% end %}
 {% block body %}
   <div class="main">
@@ -9,22 +9,28 @@
     <thead>
       <tr>
        <th><h2>Directory</h2></th>
-       <th><h2>{{ directory }}</h2></th>
+       <th><h2>{{ additionalInfo['directory'] }}</h2></th>
       </tr>
      </thead>
      <tbody>
       <tr>
        <td>Build ID</td>
-       <td>{{ buildID }}</td>
+       <td>{{ additionalInfo['buildID'] }}</td>
       </tr>
       <tr>
        <td>Git hash</td>
-       <td>{{ gitHash }}</td>
+       <td>{{ additionalInfo['gitHash'] }}</td>
       </tr>
       <tr>
        <td>Branch</td>
-       <td>{{ branch }}</td>
+       <td>{{ additionalInfo['branch'] }}</td>
       </tr>
+      {% if 'testName' in additionalInfo %}
+      <tr>
+       <td>Test name</td>
+       <td>{{ additionalInfo['testName'] }}</td>
+      </tr>
+      {% end %}
      </tbody>
     </table>
    </div>
@@ -42,7 +48,7 @@
      <tbody>
       {% for key in sorted(results.keys()) %}
       <tr>
-       <td><a href="/data?buildID={{ url_escape(buildID) }}&gitHash={{ url_escape(gitHash) }}&file={{ url_escape(key) }}">{{ key[clip:] }}</a></td>
+          <td><a href="/data?buildID={{ url_escape(additionalInfo['buildID']) }}&gitHash={{ url_escape(additionalInfo['gitHash']) }}&file={{ url_escape(key) }}{% if 'testName' in additionalInfo %}&testName={{ url_escape(additionalInfo['testName'])}}{% end %}">{{ key[additionalInfo['clip']:] }}</a></td>
        {% if 'lineCount' in results[key] %}
        <td>{{ results[key]['lineCovCount'] }}/{{ results[key]['lineCount'] }}</td>
        <td>{{ results[key]['lineCovPercentage'] }}</td>

@@ -1,3 +1,29 @@
+ #    Copyright (C) 2014 MongoDB Inc.
+ #
+ #    This program is free software: you can redistribute it and/or  modify
+ #    it under the terms of the GNU Affero General Public License, version 3,
+ #    as published by the Free Software Foundation.
+ #
+ #    This program is distributed in the hope that it will be useful,
+ #    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ #    GNU Affero General Public License for more details.
+ #
+ #    You should have received a copy of the GNU Affero General Public License
+ #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ #
+ #    As a special exception, the copyright holders give permission to link the
+ #    code of portions of this program with the OpenSSL library under certain
+ #    conditions as described in each individual source file and distribute
+ #    linked combinations including the program with the OpenSSL library. You
+ #    must comply with the GNU Affero General Public License in all respects for
+ #    all of the code used other than as permitted herein. If you modify file(s)
+ #    with this exception, you may extend this exception to your version of the
+ #    file(s), but you are not obligated to do so. If you do not wish to do so,
+ #    delete this exception statement from your version. If you delete this
+ #    exception statement from all source files in the program, then also delete
+ #    it in the license file.
+
 import sys
 import optparse
 import pymongo
@@ -25,6 +51,7 @@ import pipelines
 
 import urllib
 import string
+import copy
 
 
 class Application(tornado.web.Application):
@@ -58,14 +85,20 @@ class Application(tornado.web.Application):
         ],)
 
     @gen.coroutine
-    def getBranchName(self, buildID, gitHash):
-        # Get branch name
-        cursor = self.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
-        branch = ""
-        while (yield cursor.fetch_next):
-            branch = cursor.next_object()["branch"]
+    def getMetaDocument(self, buildID, **kwargs):
+        """Retrieve meta document for buildID (and git hash)."""
+        query = {"_id.buildID": buildID}
+        
+        # Add git hash if applicable
+        if "gitHash" in kwargs:
+            query["_id.gitHash"] = kwargs["gitHash"]
 
-        raise gen.Return(branch)
+        cursor = self.metaCollection.find(query)
+        doc = {}
+        while (yield cursor.fetch_next):
+            doc = cursor.next_object()
+
+        raise gen.Return(doc)
 
     def requestGitHubFile(self, identifier, gitHash, fileName):
         """Retrieve file from gitHub and add syntax highlighting.
@@ -95,20 +128,6 @@ class Application(tornado.web.Application):
         http_client.close()
         return fileContent, lineCount
 
-    def parseBuildID(self, buildID):
-        """Extract information from buildID"""
-        buildInfo = buildID.split("_")
-        userName = buildInfo[0]
-        repo = buildInfo[1]
-        version = buildInfo[2]
-        edition = buildInfo[3] + " " + buildInfo[4]
-        gitHash = buildInfo[5]
-        dateInfo = [int(num) for num in buildInfo[6:]]
-        date = datetime.datetime(dateInfo[0], dateInfo[1], dateInfo[2],
-                                 dateInfo[3], dateInfo[4])
-    
-        return gitHash, date
-
     
 class MainHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
@@ -127,21 +146,34 @@ class MainHandler(tornado.web.RequestHandler):
 
 class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
-    def getDirectoryResults(self, results, specifier, gitHash, buildID, directory):
+    def getDirectoryResults(self, results, specifier, gitHash, buildID, **kwargs):
         """Retreieve coverage data for directories.
 
         results - dictionary in which results are stored
         specifier - e.g. "line" or "func"
+        gitHash - git hash for which to obtain data
+        buildID - build for which to obtain data
+        kwargs - place to specify test name and/or directory
         """
+        match = {"$match": {"buildID": buildID, "gitHash": gitHash}}
+
+        if "testName" in kwargs:
+            match["$match"]["testName"] = kwargs["testName"]
+
+        if "directory" in kwargs:
+            match["$match"]["file"] = re.compile("^" + kwargs["directory"])
+
+        else:
+            match["$match"]["file"] = re.compile("^src\/mongo")
+
         if specifier == "line":
-            # Fill pipeline with gitHash, buildID, and directory info
-            pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
-            pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
-            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+            # Fill pipeline with gitHash and buildID info
+            file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
+            file_line_pipeline.insert(0, match)
 
             # Get line results
             results = {} # Store coverage data
-            cursor = yield self.application.collection.aggregate(pipelines.file_line_pipeline, cursor={})
+            cursor = yield self.application.collection.aggregate(file_line_pipeline, cursor={})
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 amountAdded = 0
@@ -150,8 +182,12 @@ class DataHandler(tornado.web.RequestHandler):
 
                 # Check if there exists an entry for this file
                 if bsonobj["_id"]["file"] in results:
-                    results[bsonobj["_id"]["file"]]["lineCovCount"]+= amountAdded
-                    results[bsonobj["_id"]["file"]]["lineCount"] += 1
+                    if "lineCount" in results[bsonobj["_id"]["file"]]:
+                        results[bsonobj["_id"]["file"]]["lineCovCount"]+= amountAdded
+                        results[bsonobj["_id"]["file"]]["lineCount"] += 1
+                    else:
+                        results[bsonobj["_id"]["file"]]["lineCovCount"] = amountAdded
+                        results[bsonobj["_id"]["file"]]["lineCount"] = 1
 
                 # Otherwise, create a new entry
                 else:
@@ -160,13 +196,11 @@ class DataHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["file"]]["lineCount"] = 1
 
         else:
-            # Fill pipeline with gitHash, buildID, and directory info
-            pipelines.file_func_pipeline[0]["$match"]["gitHash"] = gitHash 
-            pipelines.file_func_pipeline[0]["$match"]["buildID"] = buildID 
-            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^" + directory)
+            file_func_pipeline = copy.copy(pipelines.file_func_pipeline)
+            file_func_pipeline.insert(0, match)
 
             # Get function results
-            cursor = yield self.application.collection.aggregate(pipelines.file_func_pipeline, cursor={})
+            cursor = yield self.application.collection.aggregate(file_func_pipeline, cursor={})
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 amountAdded = 0 # How much to add to coverage count
@@ -208,17 +242,41 @@ class DataHandler(tornado.web.RequestHandler):
         result = None # Dictionary to store query result
         gitHash = urllib.unquote(args.get("gitHash")[0])
         buildID = urllib.unquote(args.get("buildID")[0])
+        # Get meta document 
+        doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
 
-        if "dir" in args:
+        if not doc:
+            self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
+            return
+
+        # Get branch name
+        branch = doc["branch"]
+
+        # Gather additional info to be passed to template
+        additionalInfo = {"gitHash": gitHash, 
+                          "buildID": buildID, 
+                          "branch": branch}
+
+        if "dir" in args or "testName" in args and "dir" in args:
+
             directory = urllib.unquote(args.get("dir")[0])
-           
+            additionalInfo["directory"] = directory
+            additionalInfo["clip"] = len(directory)
+
             # Get line results
             results = {} # Store coverage data
-            results = yield self.getDirectoryResults(results, "line", gitHash, buildID, directory)
-            results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory)
+
+            if "testName" in args:
+                testName = urllib.unquote(args.get("testName")[0])
+                results = yield self.getDirectoryResults(results, "line", gitHash, buildID, directory=directory, testName=testName)
+                results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory=directory, testName=testName)
+                additionalInfo["testName"] = testName
+            
+            results = yield self.getDirectoryResults(results, "line", gitHash, buildID, directory=directory)
+            results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory=directory)
 
             if not results:
-                self.render("templates/error.html", errorSources=["Git hash", "Build ID", "Directory"])
+                self.render("templates/error.html", errorSources=["Git hash", "Build ID", "Directory", "Test name"])
                 return
 
             # Add line and function coverage percentage data
@@ -228,16 +286,7 @@ class DataHandler(tornado.web.RequestHandler):
                 if "funcCount" in results[key]:
                     results[key]["funcCovPercentage"] = round(float(results[key]["funcCovCount"])/results[key]["funcCount"] * 100, 2)
 
-            # Get branch name
-            branch = yield self.application.getBranchName(buildID, gitHash)
-
-            if not branch:
-                self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
-                return
-
-            self.render("templates/data.html", results=results, directory=directory, 
-                        gitHash=gitHash, buildID=buildID, clip=len(directory), 
-                        branch=branch)
+            self.render("templates/data.html", results=results, additionalInfo=additionalInfo)
 
         else:
             if not "file" in args:
@@ -249,35 +298,44 @@ class DataHandler(tornado.web.RequestHandler):
             buildID = urllib.unquote(args.get("buildID")[0])
             fileName = urllib.unquote(args.get("file")[0])
 
+            additionalInfo = {"buildID": buildID, "gitHash": gitHash,
+                              "fileName": fileName}            
+            
             if "testName" in args:
-                testName = urllib.unquote(args.get("testName"))
-                pipeline = [{"$match":{"buildID": buildID, "gitHash": gitHash, "file": fileName, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
-   
-            else:
-                # Fill pipeline with gitHash, buildID, and fileName info
-                pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
-                pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
-                pipelines.file_line_pipeline[0]["$match"]["file"] = fileName
-
-                pipeline = pipelines.file_line_pipeline 
-
-            cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
-            result = {}
-            result["counts"] = {}
-            while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                if not "file" in result:
-                    result["file"] = bsonobj["_id"]["file"]
-                if not bsonobj["_id"]["line"] in result["counts"]:
-                    result["counts"][bsonobj["_id"]["line"]] = bsonobj["count"] 
-                else:
-                    result["counts"][bsonobj["_id"]["line"]] += bsonobj["count"]
-            # Check if result["counts"] == {} 
-
+                testName = urllib.unquote(args.get("testName")[0])
+                additionalInfo["testName"] = testName
+            
+            # If coverage data is needed, do aggregation
             if "counts" in args and args["counts"][0] == "true":
                 # Send only counts data to client
+                if "testName" in args:
+                    file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
+                    match = {"$match": {"buildID": buildID, "gitHash": gitHash, 
+                                        "testName": testName, "file": fileName}}
+                    file_line_pipeline.insert(0, match)
+       
+                else:
+                    # Fill pipeline with gitHash, buildID, and fileName info
+                    file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
+                    match = {"$match": {"buildID": buildID, "gitHash": gitHash, "file": fileName}}
+                    file_line_pipeline.insert(0, match)
+    
+                cursor =  yield self.application.collection.aggregate(file_line_pipeline, cursor={})
+                result = {}
+                result["counts"] = {}
+                while (yield cursor.fetch_next):
+                    bsonobj = cursor.next_object()
+                    if not "file" in result:
+                        result["file"] = bsonobj["_id"]["file"]
+                    if not bsonobj["_id"]["line"] in result["counts"]:
+                        result["counts"][bsonobj["_id"]["line"]] = bsonobj["count"] 
+                    else:
+                        result["counts"][bsonobj["_id"]["line"]] += bsonobj["count"]
+    
+                # Check if result["counts"] == {} 
                 self.write(json.dumps(result))
 
+            # Otherwise, obtain file content from github
             else: 
                 # Request file from github
                 fileName = urllib.unquote(args["file"][0])
@@ -287,17 +345,20 @@ class DataHandler(tornado.web.RequestHandler):
                     self.render("templates/error.html", errorSources=["Build ID", "Git hash", "File name"])
                     return
 
-                # Get branch name
-                branch = yield self.application.getBranchName(buildID, gitHash)
+                # Get meta document 
+                doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
 
-                if not branch:
-                    self.render("templates/error.html", errorSources=["Git hash", "Build ID"])
+                if not doc:
+                    self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
                     return
 
-                self.render("templates/file.html", buildID=buildID, 
-                            gitHash=gitHash, fileName=fileName, 
-                            fileContent=fileContent, lineCount=lineCount,
-                            branch=branch)
+                # Get branch name
+                branch = doc["branch"]
+                additionalInfo["branch"] = branch
+
+                additionalInfo["fileContent"] = fileContent
+                additionalInfo["lineCount"] = lineCount
+                self.render("templates/file.html", additionalInfo=additionalInfo)
 
 
 
@@ -354,20 +415,33 @@ class CacheHandler(tornado.web.RequestHandler):
         self.json_args["funcCount"] = total
         self.json_args["funcCovCount"] = total-noexec
         self.json_args["funcCovPercentage"] = round(float(total-noexec)/total * 100, 2)
-  
+
+        # Retrieve test name list
+        match = {"$match": {"buildID": buildID, "gitHash": gitHash}}
+        testname_pipeline = copy.copy(pipelines.testname_pipeline)
+        testname_pipeline.insert(0, match)
+        cursor =  yield self.application.collection.aggregate(testname_pipeline, cursor={})
+        while (yield cursor.fetch_next):
+            bsonobj = cursor.next_object()
+            self.json_args["testNames"] = bsonobj["testNames"]
+
         # Insert meta-information
         try:
-            result = yield self.application.metaCollection.insert(self.json_args)
+            result = yield self.application.metaCollection.update({"_id.buildID": buildID, "_id.gitHash": gitHash}, self.json_args, upsert=True)
         except tornado.httpclient.HTTPError as e:
             print "Error:", e
 
         # Generate coverage data by directory
-        pipelines.line_pipeline[0]["$match"]["gitHash"] = self.json_args["_id"]["gitHash"]
-        pipelines.function_pipeline[0]["$match"]["gitHash"] = self.json_args["_id"]["gitHash"]
-        pipelines.line_pipeline[0]["$match"]["buildID"] = self.json_args["_id"]["buildID"]
-        pipelines.function_pipeline[0]["$match"]["buildID"] = self.json_args["_id"]["buildID"]
+        line_pipeline = copy.copy(pipelines.line_pipeline)
+        function_pipeline = copy.copy(pipelines.function_pipeline)
 
-        cursor =  yield self.application.collection.aggregate(pipelines.line_pipeline, cursor={})
+        match = {"$match": {"buildID": self.json_args["_id"]["buildID"], "gitHash": self.json_args["_id"]["gitHash"],
+                            "file": re.compile("^src\/mongo")}}
+
+        line_pipeline.insert(0, match)
+        function_pipeline.insert(0, match)
+
+        cursor =  yield self.application.collection.aggregate(line_pipeline, cursor={})
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
             
@@ -375,9 +449,9 @@ class CacheHandler(tornado.web.RequestHandler):
             lineCount = bsonobj["lineCount"]
             lineCovCount = bsonobj["lineCovCount"]
             bsonobj["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
-            result = yield self.application.covCollection.insert(bsonobj)
+            result = yield self.application.covCollection.update({"_id.buildID": buildID, "_id.gitHash": gitHash, "_id.dir": bsonobj["_id"]["dir"]}, bsonobj, upsert=True)
         
-        cursor =  yield self.application.collection.aggregate(pipelines.function_pipeline, cursor={})
+        cursor =  yield self.application.collection.aggregate(function_pipeline, cursor={})
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
 
@@ -407,43 +481,101 @@ class ReportHandler(tornado.web.RequestHandler):
 
         else:    
             if args.get("gitHash") == None or args.get("buildID") == None:
-                self.write("Error!\n")
+                self.render("templates/error.html", errorSources=["Git hash", "Build ID"])
                 return
+
             gitHash = urllib.unquote(args.get("gitHash")[0])
             buildID = urllib.unquote(args.get("buildID")[0])
-            query = {"_id": {"gitHash": gitHash, "buildID": buildID}}
-            cursor = self.application.metaCollection.find(query)
-            metaResult = None
-            dirResults = []
-            
-            # Get summary results
-            while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                metaResult = bsonobj
-          
-            if not metaResult:
-                self.render("templates/error.html", errorSources=["Git hash", "Build ID"])
+            results = {}
+            clip=len("src/mongo/")
+
+            # Get meta document 
+            doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
+    
+            if not doc:
+                self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
                 return
-
-            query = {"_id.gitHash": gitHash, "_id.buildID": buildID}
-            cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
-
-            
-            # Get directory results
-            while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                dirResults.append(bsonobj)
 
             # Get branch name
-            branch = yield self.application.getBranchName(buildID, gitHash)
+            branch = doc["branch"]
 
-            if not branch:
-                self.render("templates/error.html", errorSources=["Git hash", "Build ID"])
-                return
+            # Get test names
+            testNames = doc["testNames"]
+            additionalInfo = {"gitHash": gitHash, "buildID": buildID,
+                              "branch": branch, "testNames": testNames, 
+                              "clip": clip}
+            
+            if "testName" in args and urllib.unquote(args["testName"][0]) != "All tests":
+                testName = urllib.unquote(args.get("testName")[0])
+                additionalInfo["testName"] = testName
 
-            self.render("templates/directory.html", result=metaResult, 
-                        dirResults=dirResults, clip=len("src/mongo/"), 
-                        branch=branch)
+                # Set up pipelines
+                line_pipeline = copy.copy(pipelines.line_pipeline)
+                function_pipeline = copy.copy(pipelines.function_pipeline)
+                match = {"$match": {"buildID": buildID, "gitHash": gitHash, 
+                            "testName": testName,
+                            "file": re.compile("^src\/mongo")}}
+
+                line_pipeline.insert(0, match)
+                function_pipeline.insert(0, match)
+                
+                # Generate coverage data by directory
+                cursor =  yield self.application.collection.aggregate(line_pipeline, cursor={})
+                # check if results is still {}
+                while (yield cursor.fetch_next):
+                    bsonobj = cursor.next_object()
+
+                    if not bsonobj["_id"]["dir"] in results:
+                        results[bsonobj["_id"]["dir"]] = {}
+                    
+                    lineCount = bsonobj["lineCount"]
+                    lineCovCount = bsonobj["lineCovCount"]
+                    results[bsonobj["_id"]["dir"]]["lineCount"] = lineCount 
+                    results[bsonobj["_id"]["dir"]]["lineCovCount"] = lineCovCount 
+                    results[bsonobj["_id"]["dir"]]["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
+
+
+                cursor =  yield self.application.collection.aggregate(function_pipeline, cursor={})
+                while (yield cursor.fetch_next):
+                    bsonobj = cursor.next_object()
+        
+                    if not bsonobj["_id"]["dir"] in results:
+                        results[bsonobj["_id"]["dir"]] = {}
+                    
+                    funcCount = bsonobj["funcCount"]
+                    funcCovCount = bsonobj["funcCovCount"]
+                    results[bsonobj["_id"]["dir"]]["funcCount"] = bsonobj["funcCount"]
+                    results[bsonobj["_id"]["dir"]]["funcCovCount"] = bsonobj["funcCovCount"]
+                    results[bsonobj["_id"]["dir"]]["funcCovPercentage"] = round(float(funcCovCount)/funcCount * 100, 2)
+
+            else:
+                query = {"_id.buildID": buildID, "_id.gitHash": gitHash}
+                cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
+            
+                # Get directory results
+                while (yield cursor.fetch_next):
+                    bsonobj = cursor.next_object()
+
+                    if not bsonobj["_id"]["dir"] in results:
+                        results[bsonobj["_id"]["dir"]] = {}
+                    
+                    # Add line count data
+                    lineCount = bsonobj["lineCount"]
+                    lineCovCount = bsonobj["lineCovCount"]
+                    results[bsonobj["_id"]["dir"]]["lineCount"] = lineCount 
+                    results[bsonobj["_id"]["dir"]]["lineCovCount"] = lineCovCount 
+                    results[bsonobj["_id"]["dir"]]["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
+
+                    # Add function count data
+                    funcCount = bsonobj["funcCount"]
+                    funcCovCount = bsonobj["funcCovCount"]
+                    results[bsonobj["_id"]["dir"]]["funcCount"] = bsonobj["funcCount"]
+                    results[bsonobj["_id"]["dir"]]["funcCovCount"] = bsonobj["funcCovCount"]
+                    results[bsonobj["_id"]["dir"]]["funcCovPercentage"] = round(float(funcCovCount)/funcCount * 100, 2)
+
+
+            self.render("templates/directory.html", 
+                        dirResults=results, additionalInfo=additionalInfo)
 
 
 class CoverageFormatter(HtmlFormatter):
@@ -503,8 +635,13 @@ class CompareHandler(tornado.web.RequestHandler):
             elif "file" in args:
                 buildID1 = args["buildID1"][0] 
                 buildID2 = args["buildID2"][0]
-                gitHash1, date = self.application.parseBuildID(buildID1)
-                gitHash2, date = self.application.parseBuildID(buildID2)
+
+                # Retrieve git hashes
+                doc = yield self.application.getMetaDocument(buildID1)
+                gitHash1 = doc["_id"]["gitHash"]
+                doc = yield self.application.getMetaDocument(buildID2)
+                gitHash2 = doc["_id"]["gitHash"]
+
                 fileName = urllib.unquote(args.get("file")[0])
                 fileContent1, lineCount1 = self.application.requestGitHubFile("A", gitHash1, fileName)
                 fileContent2, lineCount2 = self.application.requestGitHubFile("B", gitHash2, fileName)
@@ -533,9 +670,10 @@ class CompareHandler(tornado.web.RequestHandler):
             if "directory" in kwargs:
                 directory = kwargs["directory"]
                 # Fill pipeline with build/directory info
-                pipelines.file_comp_pipeline[0]["$match"]["buildID"] = buildIDs[i]
-                pipelines.file_comp_pipeline[0]["$match"]["dir"] = directory
-                cursor = yield self.application.collection.aggregate(pipelines.file_comp_pipeline, cursor={})
+                match = {"$match": {"buildID": buildIDs[i], "dir": directory}}
+                file_comp_pipeline = copy.copy(pipelines.file_comp_pipeline)
+                file_comp_pipeline.insert(0, match)
+                cursor = yield self.application.collection.aggregate(file_comp_pipeline, cursor={})
     
                 while (yield cursor.fetch_next):
                     bsonobj = cursor.next_object()
