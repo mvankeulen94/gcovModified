@@ -1,17 +1,17 @@
 {% extends "fileLayout.html" %}
 {% block header %}
-        <title> Coverage Data for {{ fileName }} </title>
+        <title> Coverage Data for {{ additionalInfo['fileName'] }} </title>
         <link rel="stylesheet" type="text/css" href="/style">
 {% end %}
 {% block body %}
     {% autoescape None %}
-    {{ fileContent }}
+    {{ additionalInfo['fileContent'] }}
 {% end %}
 {% block footer %}
     <script>
         var xmlHttp = null;
         xmlHttp = new XMLHttpRequest();
-        xmlHttp.open("GET", "/data?buildID={{ buildID }}&gitHash={{ gitHash }}&file={{ fileName }}&counts=true", false);
+        xmlHttp.open("GET", "/data?buildID={{ additionalInfo['buildID'] }}&gitHash={{ additionalInfo['gitHash'] }}&file={{ additionalInfo['fileName'] }}&counts=true", false);
         xmlHttp.send(null);
         result = JSON.parse(xmlHttp.responseText);
         var coveredLines = [];
@@ -35,7 +35,7 @@
         }
         var countsString = "";
         
-        for (i = 1, len = {{ lineCount }}; i <= len; i++) {
+        for (i = 1, len = {{ additionalInfo['lineCount'] }}; i <= len; i++) {
             if (i.toString() in result["counts"]) {
                 countsString += result["counts"][i.toString()];
                 countsString += "\n";

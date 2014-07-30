@@ -48,7 +48,8 @@
        <tr>
         <td>
          <select class="form-control" name="testName">
-         {% for testName in additionalInfo['testNames'] %}
+         <option value="All tests">All tests</option>
+         {% for testName in sorted(additionalInfo['testNames']) %}
           <option value="{{ testName }}">{{ testName }}
           </option>
          {% end %}
@@ -78,7 +79,7 @@
       </tr>
      </thead>
      <tbody>
-      {% for key in dirResults.keys() %}
+      {% for key in sorted(dirResults.keys()) %}
       <tr>
        <td><a href="/data?buildID={{ url_escape(additionalInfo['buildID']) }}&gitHash={{ url_escape(additionalInfo['gitHash']) }}&dir={{ url_escape(key) }}{% if 'testName' in additionalInfo %}&testName={{ url_escape(additionalInfo['testName'])}}{% end %}">{{ key[additionalInfo['clip']:] }}</a></td>
        {% if 'lineCount' in dirResults[key] %}

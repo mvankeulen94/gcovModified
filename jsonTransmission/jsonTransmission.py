@@ -279,8 +279,12 @@ class DataHandler(tornado.web.RequestHandler):
             buildID = urllib.unquote(args.get("buildID")[0])
             fileName = urllib.unquote(args.get("file")[0])
 
+            additionalInfo = {"buildID": buildID, "gitHash": gitHash,
+                              "fileName": fileName}            
+            
             if "testName" in args:
-                testName = urllib.unquote(args.get("testName"))
+                testName = urllib.unquote(args.get("testName")[0])
+                additionalInfo["testName"] = testName
                 pipeline = [{"$match":{"buildID": buildID, "gitHash": gitHash, "file": fileName, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
    
             else:
@@ -326,11 +330,11 @@ class DataHandler(tornado.web.RequestHandler):
 
                 # Get branch name
                 branch = doc["branch"]
+                additionalInfo["branch"] = branch
 
-                self.render("templates/file.html", buildID=buildID, 
-                            gitHash=gitHash, fileName=fileName, 
-                            fileContent=fileContent, lineCount=lineCount,
-                            branch=branch)
+                additionalInfo["fileContent"] = fileContent
+                additionalInfo["lineCount"] = lineCount
+                self.render("templates/file.html", additionalInfo=additionalInfo)
 
 
 
@@ -476,7 +480,7 @@ class ReportHandler(tornado.web.RequestHandler):
                               "branch": branch, "testNames": testNames, 
                               "clip": clip}
             
-            if "testName" in args:
+            if "testName" in args and urllib.unquote(args["testName"][0]) != "All tests":
                 testName = urllib.unquote(args.get("testName")[0])
                 additionalInfo["testName"] = testName
 
