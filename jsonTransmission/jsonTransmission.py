@@ -304,34 +304,38 @@ class DataHandler(tornado.web.RequestHandler):
             if "testName" in args:
                 testName = urllib.unquote(args.get("testName")[0])
                 additionalInfo["testName"] = testName
-                file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
-                match = {"$match": {"buildID": buildID, "gitHash": gitHash, 
-                                    "testName": testName, "file": fileName}}
-                file_line_pipeline.insert(0, match)
-   
-            else:
-                # Fill pipeline with gitHash, buildID, and fileName info
-                file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
-                match = {"$match": {"buildID": buildID, "gitHash": gitHash, "file": fileName}}
-                file_line_pipeline.insert(0, match)
-
-            cursor =  yield self.application.collection.aggregate(file_line_pipeline, cursor={})
-            result = {}
-            result["counts"] = {}
-            while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                if not "file" in result:
-                    result["file"] = bsonobj["_id"]["file"]
-                if not bsonobj["_id"]["line"] in result["counts"]:
-                    result["counts"][bsonobj["_id"]["line"]] = bsonobj["count"] 
-                else:
-                    result["counts"][bsonobj["_id"]["line"]] += bsonobj["count"]
-            # Check if result["counts"] == {} 
-
+            
+            # If coverage data is needed, do aggregation
             if "counts" in args and args["counts"][0] == "true":
                 # Send only counts data to client
+                if "testName" in args:
+                    file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
+                    match = {"$match": {"buildID": buildID, "gitHash": gitHash, 
+                                        "testName": testName, "file": fileName}}
+                    file_line_pipeline.insert(0, match)
+       
+                else:
+                    # Fill pipeline with gitHash, buildID, and fileName info
+                    file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
+                    match = {"$match": {"buildID": buildID, "gitHash": gitHash, "file": fileName}}
+                    file_line_pipeline.insert(0, match)
+    
+                cursor =  yield self.application.collection.aggregate(file_line_pipeline, cursor={})
+                result = {}
+                result["counts"] = {}
+                while (yield cursor.fetch_next):
+                    bsonobj = cursor.next_object()
+                    if not "file" in result:
+                        result["file"] = bsonobj["_id"]["file"]
+                    if not bsonobj["_id"]["line"] in result["counts"]:
+                        result["counts"][bsonobj["_id"]["line"]] = bsonobj["count"] 
+                    else:
+                        result["counts"][bsonobj["_id"]["line"]] += bsonobj["count"]
+    
+                # Check if result["counts"] == {} 
                 self.write(json.dumps(result))
 
+            # Otherwise, obtain file content from github
             else: 
                 # Request file from github
                 fileName = urllib.unquote(args["file"][0])
@@ -669,7 +673,6 @@ class CompareHandler(tornado.web.RequestHandler):
                 match = {"$match": {"buildID": buildIDs[i], "dir": directory}}
                 file_comp_pipeline = copy.copy(pipelines.file_comp_pipeline)
                 file_comp_pipeline.insert(0, match)
-                print file_comp_pipeline
                 cursor = yield self.application.collection.aggregate(file_comp_pipeline, cursor={})
     
                 while (yield cursor.fetch_next):
