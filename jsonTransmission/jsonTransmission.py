@@ -123,7 +123,7 @@ class Application(tornado.web.Application):
             lineCount = string.count(content, "\n")
     
         except tornado.httpclient.HTTPError as e:
-            return "NULL", "NULL"
+            return "NULL", 0 
         
         http_client.close()
         return fileContent, lineCount
@@ -333,7 +333,7 @@ class DataHandler(tornado.web.RequestHandler):
                     else:
                         result["counts"][bsonobj["_id"]["line"]] += bsonobj["count"]
     
-                # Check if result["counts"] == {} 
+                # TODO: Check if result["counts"] == {} 
                 self.write(json.dumps(result))
 
             # Otherwise, obtain file content from github
@@ -522,7 +522,7 @@ class ReportHandler(tornado.web.RequestHandler):
                 
                 # Generate coverage data by directory
                 cursor =  yield self.application.collection.aggregate(line_pipeline, cursor={})
-                # check if results is still {}
+                # TODO: check if results is still {}
                 while (yield cursor.fetch_next):
                     bsonobj = cursor.next_object()
 
