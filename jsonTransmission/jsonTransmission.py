@@ -59,9 +59,15 @@ class Application(tornado.web.Application):
         ],)
 
     @gen.coroutine
-    def getMetaDocument(self, buildID, gitHash):
-        """Retrieve meta document for buildID and gitHash."""
-        cursor = self.metaCollection.find({"_id.buildID": buildID, "_id.gitHash": gitHash})
+    def getMetaDocument(self, buildID, **kwargs):
+        """Retrieve meta document for buildID (and git hash)."""
+        query = {"_id.buildID": buildID}
+        
+        # Add git hash if applicable
+        if "gitHash" in kwargs:
+            query["_id.gitHash"] = kwargs["gitHash"]
+
+        cursor = self.metaCollection.find(query)
         doc = {}
         while (yield cursor.fetch_next):
             doc = cursor.next_object()
@@ -96,20 +102,6 @@ class Application(tornado.web.Application):
         http_client.close()
         return fileContent, lineCount
 
-    def parseBuildID(self, buildID):
-        """Extract information from buildID"""
-        buildInfo = buildID.split("_")
-        userName = buildInfo[0]
-        repo = buildInfo[1]
-        version = buildInfo[2]
-        edition = buildInfo[3] + " " + buildInfo[4]
-        gitHash = buildInfo[5]
-        dateInfo = [int(num) for num in buildInfo[6:]]
-        date = datetime.datetime(dateInfo[0], dateInfo[1], dateInfo[2],
-                                 dateInfo[3], dateInfo[4])
-    
-        return gitHash, date
-
     
 class MainHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
@@ -133,27 +125,29 @@ class DataHandler(tornado.web.RequestHandler):
 
         results - dictionary in which results are stored
         specifier - e.g. "line" or "func"
+        gitHash - git hash for which to obtain data
+        buildID - build for which to obtain data
+        kwargs - place to specify test name and/or directory
         """
+        match = {"$match": {"buildID": buildID, "gitHash": gitHash}}
+
         if "testName" in kwargs:
-            pipelines.file_line_pipeline[0]["$match"]["testName"] = kwargs["testName"]
-            pipelines.file_func_pipeline[0]["$match"]["testName"] = kwargs["testName"]
+            match["$match"]["testName"] = kwargs["testName"]
 
         if "directory" in kwargs:
-            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + kwargs["directory"])
-            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^" + kwargs["directory"])
+            match["$match"]["file"] = re.compile("^" + kwargs["directory"])
 
         else:
-            pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^src\/mongo")
-            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^src\/mongo")
+            match["$match"]["file"] = re.compile("^src\/mongo")
 
         if specifier == "line":
             # Fill pipeline with gitHash and buildID info
-            pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
-            pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
+            file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
+            file_line_pipeline.insert(0, match)
 
             # Get line results
             results = {} # Store coverage data
-            cursor = yield self.application.collection.aggregate(pipelines.file_line_pipeline, cursor={})
+            cursor = yield self.application.collection.aggregate(file_line_pipeline, cursor={})
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 amountAdded = 0
@@ -176,12 +170,11 @@ class DataHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["file"]]["lineCount"] = 1
 
         else:
-            # Fill pipeline with gitHash and buildID info
-            pipelines.file_func_pipeline[0]["$match"]["gitHash"] = gitHash 
-            pipelines.file_func_pipeline[0]["$match"]["buildID"] = buildID 
+            file_func_pipeline = copy.copy(pipelines.file_func_pipeline)
+            file_func_pipeline.insert(0, match)
 
             # Get function results
-            cursor = yield self.application.collection.aggregate(pipelines.file_func_pipeline, cursor={})
+            cursor = yield self.application.collection.aggregate(file_func_pipeline, cursor={})
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 amountAdded = 0 # How much to add to coverage count
@@ -224,7 +217,7 @@ class DataHandler(tornado.web.RequestHandler):
         gitHash = urllib.unquote(args.get("gitHash")[0])
         buildID = urllib.unquote(args.get("buildID")[0])
         # Get meta document 
-        doc = yield self.application.getMetaDocument(buildID, gitHash)
+        doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
 
         if not doc:
             self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
@@ -285,17 +278,18 @@ class DataHandler(tornado.web.RequestHandler):
             if "testName" in args:
                 testName = urllib.unquote(args.get("testName")[0])
                 additionalInfo["testName"] = testName
-                pipeline = [{"$match":{"buildID": buildID, "gitHash": gitHash, "file": fileName, "testName": testName}}, {"$project":{"file":1, "lc":1}}, {"$unwind": "$lc"}, {"$group":{"_id": {"file": "$file", "line": "$lc.ln"}, "count":{"$sum": "$lc.ec"}}}]
+                file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
+                match = {"$match": {"buildID": buildID, "gitHash": gitHash, 
+                                    "testName": testName, "file": fileName}}
+                file_line_pipeline.insert(0, match)
    
             else:
                 # Fill pipeline with gitHash, buildID, and fileName info
-                pipelines.file_line_pipeline[0]["$match"]["gitHash"] = gitHash 
-                pipelines.file_line_pipeline[0]["$match"]["buildID"] = buildID 
-                pipelines.file_line_pipeline[0]["$match"]["file"] = fileName
+                file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
+                match = {"$match": {"buildID": buildID, "gitHash": gitHash, "file": fileName}}
+                file_line_pipeline.insert(0, match)
 
-                pipeline = pipelines.file_line_pipeline 
-
-            cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
+            cursor =  yield self.application.collection.aggregate(file_line_pipeline, cursor={})
             result = {}
             result["counts"] = {}
             while (yield cursor.fetch_next):
@@ -322,7 +316,7 @@ class DataHandler(tornado.web.RequestHandler):
                     return
 
                 # Get meta document 
-                doc = yield self.application.getMetaDocument(buildID, gitHash)
+                doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
 
                 if not doc:
                     self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
@@ -393,9 +387,10 @@ class CacheHandler(tornado.web.RequestHandler):
         self.json_args["funcCovPercentage"] = round(float(total-noexec)/total * 100, 2)
 
         # Retrieve test name list
-        pipelines.testname_pipeline[0]["$match"]["gitHash"] = self.json_args["_id"]["gitHash"]
-        pipelines.testname_pipeline[0]["$match"]["buildID"] = self.json_args["_id"]["buildID"]
-        cursor =  yield self.application.collection.aggregate(pipelines.testname_pipeline, cursor={})
+        match = {"$match": {"buildID": buildID, "gitHash": gitHash}}
+        testname_pipeline = copy.copy(pipelines.testname_pipeline)
+        testname_pipeline.insert(0, match)
+        cursor =  yield self.application.collection.aggregate(testname_pipeline, cursor={})
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
             self.json_args["testNames"] = bsonobj["testNames"]
@@ -465,7 +460,7 @@ class ReportHandler(tornado.web.RequestHandler):
             clip=len("src/mongo/")
 
             # Get meta document 
-            doc = yield self.application.getMetaDocument(buildID, gitHash)
+            doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
     
             if not doc:
                 self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
@@ -610,8 +605,13 @@ class CompareHandler(tornado.web.RequestHandler):
             elif "file" in args:
                 buildID1 = args["buildID1"][0] 
                 buildID2 = args["buildID2"][0]
-                gitHash1, date = self.application.parseBuildID(buildID1)
-                gitHash2, date = self.application.parseBuildID(buildID2)
+
+                # Retrieve git hashes
+                doc = yield self.application.getMetaDocument(buildID1)
+                gitHash1 = doc["_id"]["gitHash"]
+                doc = yield self.application.getMetaDocument(buildID2)
+                gitHash2 = doc["_id"]["gitHash"]
+
                 fileName = urllib.unquote(args.get("file")[0])
                 fileContent1, lineCount1 = self.application.requestGitHubFile("A", gitHash1, fileName)
                 fileContent2, lineCount2 = self.application.requestGitHubFile("B", gitHash2, fileName)
@@ -640,9 +640,11 @@ class CompareHandler(tornado.web.RequestHandler):
             if "directory" in kwargs:
                 directory = kwargs["directory"]
                 # Fill pipeline with build/directory info
-                pipelines.file_comp_pipeline[0]["$match"]["buildID"] = buildIDs[i]
-                pipelines.file_comp_pipeline[0]["$match"]["dir"] = directory
-                cursor = yield self.application.collection.aggregate(pipelines.file_comp_pipeline, cursor={})
+                match = {"$match": {"buildID": buildIDs[i], "dir": directory}}
+                file_comp_pipeline = copy.copy(pipelines.file_comp_pipeline)
+                file_comp_pipeline.insert(0, match)
+                print file_comp_pipeline
+                cursor = yield self.application.collection.aggregate(file_comp_pipeline, cursor={})
     
                 while (yield cursor.fetch_next):
                     bsonobj = cursor.next_object()

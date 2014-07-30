@@ -140,13 +140,6 @@ line_pipeline = [
 
 file_line_pipeline = [
 	{
-		"$match" : {
-			"buildID" : "",
-			"gitHash" : "",
-			"file" : "" 
-		}
-	},
-	{
 		"$project" : {
 			"file" : 1,
 			"lc" : 1
@@ -175,13 +168,6 @@ file_line_pipeline = [
 ]
 
 file_func_pipeline = [
-	{
-		"$match" : {
-			"buildID" : "",
-			"gitHash" : "",
-			"file" : "" 
-		}
-	},
 	{
 		"$project" : {
 			"file" : 1,
@@ -212,12 +198,6 @@ file_func_pipeline = [
 
 file_comp_pipeline = [
 	{
-		"$match" : {
-			"buildID" : "",
-			"dir" : "" 
-		}
-	},
-	{
 		"$project" : {
 			"file" : 1,
 			"lc" : 1
@@ -246,13 +226,6 @@ file_comp_pipeline = [
 ]
 
 testname_pipeline = [
-	{
-		"$match" : {
-			"buildID" : "",
-			"gitHash" : "",
-			"file" : re.compile("^src\/mongo") 
-		}
-	},
 	{
 		"$project" : {
 			"buildID" : 1,
