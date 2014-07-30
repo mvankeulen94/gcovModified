@@ -235,7 +235,8 @@ class DataHandler(tornado.web.RequestHandler):
     def get(self):
         args = self.request.arguments
         if len(args) == 0:
-            self.write("\nError!\n")
+            self.render("templates/error.html", errorSources=["Build ID", "Git hash", "Directory"])
+            return
 
         query = {}
         cursor = None # Cursor with which to traverse query results
@@ -290,7 +291,7 @@ class DataHandler(tornado.web.RequestHandler):
 
         else:
             if not "file" in args:
-                self.write("\nError!\n")
+                self.render("templates/error.html", errorSources=["File name"])
                 return
             
             # Generate line coverage results
@@ -638,8 +639,15 @@ class CompareHandler(tornado.web.RequestHandler):
 
                 # Retrieve git hashes
                 doc = yield self.application.getMetaDocument(buildID1)
+                if not doc:
+                    self.render("templates/error.html", errorSources=["Build ID 1", "Build ID 2"])
+                    return
                 gitHash1 = doc["_id"]["gitHash"]
+
                 doc = yield self.application.getMetaDocument(buildID2)
+                if not doc:
+                    self.render("templates/error.html", errorSources=["Build ID 2"])
+                    return
                 gitHash2 = doc["_id"]["gitHash"]
 
                 fileName = urllib.unquote(args.get("file")[0])
