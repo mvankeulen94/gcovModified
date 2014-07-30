@@ -140,10 +140,11 @@ class DataHandler(tornado.web.RequestHandler):
 
         if "directory" in kwargs:
             pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^" + kwargs["directory"])
+            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^" + kwargs["directory"])
 
         else:
             pipelines.file_line_pipeline[0]["$match"]["file"] = re.compile("^src\/mongo")
-
+            pipelines.file_func_pipeline[0]["$match"]["file"] = re.compile("^src\/mongo")
 
         if specifier == "line":
             # Fill pipeline with gitHash and buildID info
@@ -161,8 +162,12 @@ class DataHandler(tornado.web.RequestHandler):
 
                 # Check if there exists an entry for this file
                 if bsonobj["_id"]["file"] in results:
-                    results[bsonobj["_id"]["file"]]["lineCovCount"]+= amountAdded
-                    results[bsonobj["_id"]["file"]]["lineCount"] += 1
+                    if "lineCount" in results[bsonobj["_id"]["file"]]:
+                        results[bsonobj["_id"]["file"]]["lineCovCount"]+= amountAdded
+                        results[bsonobj["_id"]["file"]]["lineCount"] += 1
+                    else:
+                        results[bsonobj["_id"]["file"]]["lineCovCount"] = amountAdded
+                        results[bsonobj["_id"]["file"]]["lineCount"] = 1
 
                 # Otherwise, create a new entry
                 else:
