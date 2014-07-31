@@ -731,24 +731,24 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
             if (!arc->is_unconditional && !arc->is_call_non_return)
               {
                 const char *branch_type;
-                if (arc->src->count)
-                  branch_type = (arc->count > 0) ? "taken" : "nottaken";
-                else
-                  branch_type = "notexec";
-                //addToList(&branch, format_gcov(line_num, 0, -1), branch_type, "string");
                 /* <line_num>: <branch_coverage_type>
                    branch_coverage_type
                      : notexec (Branch not executed)
                      : taken (Branch executed and taken)
                      : nottaken (Branch executed, but not taken)
                 */
+                if (arc->src->count)
+                  branch_type = (arc->count > 0) ? "taken" : "nottaken";
+                else
+                  branch_type = "notexec";
+                addToList(&branch, format_gcov(line_num, 0, -1), branch_type, "string");
               }
           }
 
       }
     }
 
-    //addToList(&list, "branch", &branch, "array");
+    addToList(&list, "branch", &branch, "array");
     addToList(&list, "lc", &lc, "array");
     if (printAndDeleteList(&list, gcov_file))
         return 1;
