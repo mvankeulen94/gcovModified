@@ -234,7 +234,7 @@ class DataHandler(tornado.web.RequestHandler):
     def get(self):
         args = self.request.arguments
         if len(args) == 0:
-            self.render("templates/error.html", errorSources=["Build ID", "Git hash", "Directory"])
+            self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash", "Directory"]})
             return
 
         query = {}
@@ -246,7 +246,7 @@ class DataHandler(tornado.web.RequestHandler):
         doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
 
         if not doc:
-            self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
+            self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash"]})
             return
 
         # Get branch name
@@ -277,7 +277,7 @@ class DataHandler(tornado.web.RequestHandler):
                 results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory=directory)
 
             if not results:
-                self.render("templates/error.html", errorSources=["Git hash", "Build ID", "Directory", "Test name"])
+                self.render("templates/error.html", additionalInfo={"errorSources": ["Git hash", "Build ID", "Directory", "Test name"]})
                 return
 
             # Add line and function coverage percentage data
@@ -291,7 +291,7 @@ class DataHandler(tornado.web.RequestHandler):
 
         else:
             if not "file" in args:
-                self.render("templates/error.html", errorSources=["File name"])
+                self.render("templates/error.html", additionalInfo={"errorSources": ["File name"]})
                 return
             
             # Generate line coverage results
@@ -332,8 +332,11 @@ class DataHandler(tornado.web.RequestHandler):
                         result["counts"][bsonobj["_id"]["line"]] = bsonobj["count"] 
                     else:
                         result["counts"][bsonobj["_id"]["line"]] += bsonobj["count"]
-    
-                # TODO: Check if result["counts"] == {} 
+                
+                if not result["counts"]:
+                    self.write(json.dumps({"result": "NULL"}))
+                    return
+
                 self.write(json.dumps(result))
 
             # Otherwise, obtain file content from github
@@ -343,14 +346,14 @@ class DataHandler(tornado.web.RequestHandler):
                 (fileContent, lineCount) = self.application.requestGitHubFile("", gitHash, fileName)
 
                 if fileContent == "NULL":
-                    self.render("templates/error.html", errorSources=["Build ID", "Git hash", "File name"])
+                    self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash", "File name"]})
                     return
 
                 # Get meta document 
                 doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
 
                 if not doc:
-                    self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
+                    self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash"]})
                     return
 
                 # Get branch name
@@ -546,12 +549,16 @@ class ReportHandler(tornado.web.RequestHandler):
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
                 results.append(bsonobj)
+            
+            if not results:
+                self.render("templates/error.html", additionalInfo={})
+                return
 
             self.render("templates/report.html", results=results)
 
         else:    
             if args.get("gitHash") == None or args.get("buildID") == None:
-                self.render("templates/error.html", errorSources=["Git hash", "Build ID"])
+                self.render("templates/error.html", additionalInfo={"errorSources": ["Git hash", "Build ID"]})
                 return
 
             gitHash = urllib.unquote(args.get("gitHash")[0])
@@ -563,7 +570,7 @@ class ReportHandler(tornado.web.RequestHandler):
             doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
     
             if not doc:
-                self.render("templates/error.html", errorSources=["Build ID", "Git hash"])
+                self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash"]})
                 return
 
             # Get branch name
@@ -585,7 +592,9 @@ class ReportHandler(tornado.web.RequestHandler):
                 results = yield self.getBuildGitHashResults(results, "line", gitHash, buildID)
                 results = yield self.getBuildGitHashResults(results, "func", gitHash, buildID)
 
-                # TODO: check if results is still {}
+            if not results:
+                self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash", "Test name"]})
+                return
 
             self.render("templates/directory.html", 
                         dirResults=results, additionalInfo=additionalInfo)
@@ -637,7 +646,7 @@ class CompareHandler(tornado.web.RequestHandler):
                 results = yield self.getComparisonData(buildIDs, directory=directory)
 
                 if not results:
-                    self.render("templates/error.html", errorSources=["Build ID 1", "Build ID 2", "Directory"])
+                    self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID 1", "Build ID 2", "Directory"]})
                     return
 
                 self.addCoverageComparison(results)
@@ -652,13 +661,13 @@ class CompareHandler(tornado.web.RequestHandler):
                 # Retrieve git hashes
                 doc = yield self.application.getMetaDocument(buildID1)
                 if not doc:
-                    self.render("templates/error.html", errorSources=["Build ID 1", "Build ID 2"])
+                    self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID 1", "Build ID 2"]})
                     return
                 gitHash1 = doc["_id"]["gitHash"]
 
                 doc = yield self.application.getMetaDocument(buildID2)
                 if not doc:
-                    self.render("templates/error.html", errorSources=["Build ID 2"])
+                    self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID 2"]})
                     return
                 gitHash2 = doc["_id"]["gitHash"]
 
@@ -674,7 +683,7 @@ class CompareHandler(tornado.web.RequestHandler):
                 results = yield self.getComparisonData(buildIDs)
 
                 if not results:
-                    self.render("templates/error.html", errorSources=["Build ID 1", "Build ID 2"])
+                    self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID 1", "Build ID 2"]})
                     return
 
                 self.addCoverageComparison(results)
