@@ -463,6 +463,76 @@ class CacheHandler(tornado.web.RequestHandler):
 
 
 class ReportHandler(tornado.web.RequestHandler):
+
+    @gen.coroutine
+    def getBuildGitHashResults(self, results, specifier, gitHash, buildID, **kwargs):
+        """Retreieve coverage data for directories.
+
+        results - dictionary in which results are stored
+        specifier - e.g. "line" or "func"
+        gitHash - git hash for which to obtain data
+        buildID - build for which to obtain data
+        kwargs - place to specify test name
+        """
+        match = {"$match": {"buildID": buildID, "gitHash": gitHash,
+                            "file": re.compile("^src\/mongo")}}
+
+        if "testName" in kwargs:
+            match["$match"]["testName"] = kwargs["testName"]
+            action = "aggregate"
+        else:
+            action = "query"
+
+        # Generate coverage data by directory
+        if specifier == "line":
+            if action == "aggregate":
+                line_pipeline = copy.copy(pipelines.line_pipeline)
+                line_pipeline.insert(0, match)
+                cursor =  yield self.application.collection.aggregate(line_pipeline, cursor={})
+            else:
+                query = {"_id.buildID": buildID, "_id.gitHash": gitHash}
+                cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
+
+            # Get directory results
+            while (yield cursor.fetch_next):
+                bsonobj = cursor.next_object()
+
+                if not bsonobj["_id"]["dir"] in results:
+                    results[bsonobj["_id"]["dir"]] = {}
+                
+                # Add line count data
+                lineCount = bsonobj["lineCount"]
+                lineCovCount = bsonobj["lineCovCount"]
+                results[bsonobj["_id"]["dir"]]["lineCount"] = lineCount 
+                results[bsonobj["_id"]["dir"]]["lineCovCount"] = lineCovCount 
+                results[bsonobj["_id"]["dir"]]["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
+
+        else:
+            if action == "aggregate":
+                function_pipeline = copy.copy(pipelines.function_pipeline)
+                function_pipeline.insert(0, match)
+                cursor =  yield self.application.collection.aggregate(function_pipeline, cursor={})
+
+            else:
+                query = {"_id.buildID": buildID, "_id.gitHash": gitHash}
+                cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
+
+            # Get directory results
+            while (yield cursor.fetch_next):
+                bsonobj = cursor.next_object()
+
+                if not bsonobj["_id"]["dir"] in results:
+                    results[bsonobj["_id"]["dir"]] = {}
+
+               # Add function count data
+                funcCount = bsonobj["funcCount"]
+                funcCovCount = bsonobj["funcCovCount"]
+                results[bsonobj["_id"]["dir"]]["funcCount"] = bsonobj["funcCount"]
+                results[bsonobj["_id"]["dir"]]["funcCovCount"] = bsonobj["funcCovCount"]
+                results[bsonobj["_id"]["dir"]]["funcCovPercentage"] = round(float(funcCovCount)/funcCount * 100, 2)
+
+        raise gen.Return(results)
+
     @tornado.web.asynchronous
     @gen.coroutine
     def get(self):
@@ -508,71 +578,14 @@ class ReportHandler(tornado.web.RequestHandler):
             if "testName" in args and urllib.unquote(args["testName"][0]) != "All tests":
                 testName = urllib.unquote(args.get("testName")[0])
                 additionalInfo["testName"] = testName
-
-                # Set up pipelines
-                line_pipeline = copy.copy(pipelines.line_pipeline)
-                function_pipeline = copy.copy(pipelines.function_pipeline)
-                match = {"$match": {"buildID": buildID, "gitHash": gitHash, 
-                            "testName": testName,
-                            "file": re.compile("^src\/mongo")}}
-
-                line_pipeline.insert(0, match)
-                function_pipeline.insert(0, match)
-                
-                # Generate coverage data by directory
-                cursor =  yield self.application.collection.aggregate(line_pipeline, cursor={})
-                # TODO: check if results is still {}
-                while (yield cursor.fetch_next):
-                    bsonobj = cursor.next_object()
-
-                    if not bsonobj["_id"]["dir"] in results:
-                        results[bsonobj["_id"]["dir"]] = {}
-                    
-                    lineCount = bsonobj["lineCount"]
-                    lineCovCount = bsonobj["lineCovCount"]
-                    results[bsonobj["_id"]["dir"]]["lineCount"] = lineCount 
-                    results[bsonobj["_id"]["dir"]]["lineCovCount"] = lineCovCount 
-                    results[bsonobj["_id"]["dir"]]["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
-
-
-                cursor =  yield self.application.collection.aggregate(function_pipeline, cursor={})
-                while (yield cursor.fetch_next):
-                    bsonobj = cursor.next_object()
-        
-                    if not bsonobj["_id"]["dir"] in results:
-                        results[bsonobj["_id"]["dir"]] = {}
-                    
-                    funcCount = bsonobj["funcCount"]
-                    funcCovCount = bsonobj["funcCovCount"]
-                    results[bsonobj["_id"]["dir"]]["funcCount"] = bsonobj["funcCount"]
-                    results[bsonobj["_id"]["dir"]]["funcCovCount"] = bsonobj["funcCovCount"]
-                    results[bsonobj["_id"]["dir"]]["funcCovPercentage"] = round(float(funcCovCount)/funcCount * 100, 2)
+                results = yield self.getBuildGitHashResults(results, "line", gitHash, buildID, testName=testName)
+                results = yield self.getBuildGitHashResults(results, "func", gitHash, buildID, testName=testName)
 
             else:
-                query = {"_id.buildID": buildID, "_id.gitHash": gitHash}
-                cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
-            
-                # Get directory results
-                while (yield cursor.fetch_next):
-                    bsonobj = cursor.next_object()
+                results = yield self.getBuildGitHashResults(results, "line", gitHash, buildID)
+                results = yield self.getBuildGitHashResults(results, "func", gitHash, buildID)
 
-                    if not bsonobj["_id"]["dir"] in results:
-                        results[bsonobj["_id"]["dir"]] = {}
-                    
-                    # Add line count data
-                    lineCount = bsonobj["lineCount"]
-                    lineCovCount = bsonobj["lineCovCount"]
-                    results[bsonobj["_id"]["dir"]]["lineCount"] = lineCount 
-                    results[bsonobj["_id"]["dir"]]["lineCovCount"] = lineCovCount 
-                    results[bsonobj["_id"]["dir"]]["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
-
-                    # Add function count data
-                    funcCount = bsonobj["funcCount"]
-                    funcCovCount = bsonobj["funcCovCount"]
-                    results[bsonobj["_id"]["dir"]]["funcCount"] = bsonobj["funcCount"]
-                    results[bsonobj["_id"]["dir"]]["funcCovCount"] = bsonobj["funcCovCount"]
-                    results[bsonobj["_id"]["dir"]]["funcCovPercentage"] = round(float(funcCovCount)/funcCount * 100, 2)
-
+                # TODO: check if results is still {}
 
             self.render("templates/directory.html", 
                         dirResults=results, additionalInfo=additionalInfo)
