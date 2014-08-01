@@ -227,7 +227,6 @@ class DataHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["file"]] = {}
                     results[bsonobj["_id"]["file"]]["funcCovCount"] = amountAdded
                     results[bsonobj["_id"]["file"]]["funcCount"] = 1
-
         raise gen.Return(results)
 
     @tornado.web.asynchronous
@@ -272,9 +271,10 @@ class DataHandler(tornado.web.RequestHandler):
                 results = yield self.getDirectoryResults(results, "line", gitHash, buildID, directory=directory, testName=testName)
                 results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory=directory, testName=testName)
                 additionalInfo["testName"] = testName
-            
-            results = yield self.getDirectoryResults(results, "line", gitHash, buildID, directory=directory)
-            results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory=directory)
+           
+            else:
+                results = yield self.getDirectoryResults(results, "line", gitHash, buildID, directory=directory)
+                results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory=directory)
 
             if not results:
                 self.render("templates/error.html", errorSources=["Git hash", "Build ID", "Directory", "Test name"])
@@ -360,7 +360,6 @@ class DataHandler(tornado.web.RequestHandler):
                 additionalInfo["fileContent"] = fileContent
                 additionalInfo["lineCount"] = lineCount
                 self.render("templates/file.html", additionalInfo=additionalInfo)
-
 
 
 class CacheHandler(tornado.web.RequestHandler):
