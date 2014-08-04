@@ -79,6 +79,7 @@ class Application(tornado.web.Application):
             (r"/static/(.*)", tornado.web.StaticFileHandler, {"path": "static/"}),
         ],)
 
+    # TODO: move to outside Application class
     @gen.coroutine
     def getMetaDocument(self, buildID, gitHash=None):
         """Retrieve meta document for buildID (and git hash)."""
@@ -88,15 +89,11 @@ class Application(tornado.web.Application):
         if gitHash:
             query["_id.gitHash"] = gitHash 
 
-        cursor = self.metaCollection.find(query)
-        doc = {}
-        while (yield cursor.fetch_next):
-            doc = cursor.next_object()
-
+        doc = yield self.metaCollection.find_one(query)
         raise gen.Return(doc)
 
-    def requestGitHubFile(self, identifier, gitHash, fileName):
-        """Retrieve file from gitHub and add syntax highlighting.
+    def requestGitHubFile(self, gitHash, fileName):
+        """Retrieve file from GitHub with gitHash and fileName.
     
         Return highlighted file content and line count of content.
         """
@@ -113,15 +110,18 @@ class Application(tornado.web.Application):
             response = http_client.fetch(request)
             responseDict = json.loads(response.body)
             content = base64.b64decode(responseDict["content"])
-            fileContent = highlight(content, CppLexer(), 
-                                    CoverageFormatter(identifier))
             lineCount = string.count(content, "\n")
     
         except tornado.httpclient.HTTPError as e:
             return "NULL", 0 
         
         http_client.close()
-        return fileContent, lineCount
+        return content, lineCount
+
+    def add_syntax_highlighting(self, content, identifier=""):
+        """Add syntax highlighting to content, using identifier."""
+        fileContent = highlight(content, CppLexer(), CoverageFormatter(identifier))
+        return fileContent
 
     
 class MainHandler(tornado.web.RequestHandler):
@@ -338,12 +338,14 @@ class DataHandler(tornado.web.RequestHandler):
             else: 
                 # Request file from github
                 fileName = urllib.unquote(args["file"][0])
-                (fileContent, lineCount) = self.application.requestGitHubFile("", gitHash, fileName)
+                (content, lineCount) = self.application.requestGitHubFile(gitHash, fileName)
 
-                if fileContent == "NULL":
+                if content == "NULL":
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash", "File name"]})
                     return
-
+                
+                # Add syntax highlighting
+                fileContent = self.application.add_syntax_highlighting(content)
                 # Get meta document 
                 doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
 
@@ -667,8 +669,13 @@ class CompareHandler(tornado.web.RequestHandler):
                 gitHash2 = doc["_id"]["gitHash"]
 
                 fileName = urllib.unquote(args.get("file")[0])
-                fileContent1, lineCount1 = self.application.requestGitHubFile("A", gitHash1, fileName)
-                fileContent2, lineCount2 = self.application.requestGitHubFile("B", gitHash2, fileName)
+
+                # Request GitHub files
+                content1, lineCount1 = self.application.requestGitHubFile(gitHash1, fileName)
+                content2, lineCount2 = self.application.requestGitHubFile(gitHash2, fileName)
+                # Add syntax highlighting
+                fileContent1 = self.application.add_syntax_highlighting(content1, identifier="A")
+                fileContent2 = self.application.add_syntax_highlighting(content2, identifier="B")
 
                 self.render("templates/fileCompare.html", buildID1=buildID1, buildID2=buildID2, fileContent1=fileContent1, fileContent2=fileContent2, fileName=fileName, gitHash1=gitHash1, gitHash2=gitHash2, lineCount1=lineCount1, lineCount2=lineCount2)
            
