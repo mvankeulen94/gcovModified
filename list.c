@@ -209,7 +209,7 @@ static void printAndDeleteNode (struct Node *node, FILE *file) {
     }
    
     if (strcmp(node->type, "long") == 0) {
-       fprintf(file, "%s: %lu", node->key, *(long *) node->value);
+       fprintf(file, "%s: %ld", node->key, *(long *) node->value);
     }
 
     if (strcmp(node->type, "string") == 0) {
