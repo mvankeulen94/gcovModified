@@ -24,14 +24,12 @@
  #    exception statement from all source files in the program, then also delete
  #    it in the license file.
 
-import sys
-import optparse
+# TODO: reorder imports
+# TODO: fix variable naming conventions
 import pymongo
-from pymongo import MongoClient
 import json
 from bson.json_util import dumps as bsondumps
 import re
-from pprint import pprint
 
 import tornado.ioloop
 import tornado.web
@@ -45,7 +43,6 @@ import base64
 from pygments import highlight
 from pygments.lexers import CppLexer
 from pygments.formatters import HtmlFormatter
-import datetime
 
 import pipelines
 
@@ -56,13 +53,12 @@ import copy
 
 class Application(tornado.web.Application):
     def __init__(self):
-        configFile = open("config.conf", "r")
-        conf = json.loads(configFile.readline())
-        configFile.close()
+        with open("config.conf", "r") as f:
+            conf = json.loads(f.readline())
         self.client = motor.MotorClient(host=conf["hostname"], port=conf["port"], 
-                                        ssl=True, ssl_certfile=conf["clientPEM"], 
+                                        ssl=True, ssl_certfile=conf["client_pem"], 
                                         ssl_cert_reqs=ssl.CERT_REQUIRED, 
-                                        ssl_ca_certs=conf["CAfile"])
+                                        ssl_ca_certs=conf["ca_file"])
 
         self.client.the_database.authenticate(conf["username"], mechanism="MONGODB-X509")
 
@@ -71,27 +67,26 @@ class Application(tornado.web.Application):
         self.metaCollection = self.db[conf["metaCollection"]]
         self.covCollection = self.db[conf["covCollection"]]
         self.httpport = conf["httpport"]
-        self.token = conf["token"]
+        self.token = conf["github_token"]
        
         super(Application, self).__init__([
-        (r"/", MainHandler),
-        (r"/report", ReportHandler),
-        (r"/data", DataHandler),
-        (r"/meta", CacheHandler),
-        (r"/style", StyleHandler),
-        (r"/compare", CompareHandler),
-        (r"/static/(.*)", tornado.web.StaticFileHandler, 
-         {"path": "static/"}),
+            (r"/", MainHandler),
+            (r"/report", ReportHandler),
+            (r"/data", DataHandler),
+            (r"/meta", CacheHandler),
+            (r"/style", StyleHandler),
+            (r"/compare", CompareHandler),
+            (r"/static/(.*)", tornado.web.StaticFileHandler, {"path": "static/"}),
         ],)
 
     @gen.coroutine
-    def getMetaDocument(self, buildID, **kwargs):
+    def getMetaDocument(self, buildID, gitHash=None):
         """Retrieve meta document for buildID (and git hash)."""
         query = {"_id.buildID": buildID}
         
         # Add git hash if applicable
-        if "gitHash" in kwargs:
-            query["_id.gitHash"] = kwargs["gitHash"]
+        if gitHash:
+            query["_id.gitHash"] = gitHash 
 
         cursor = self.metaCollection.find(query)
         doc = {}
