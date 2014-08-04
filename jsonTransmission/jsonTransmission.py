@@ -164,65 +164,43 @@ class DataHandler(tornado.web.RequestHandler):
             match["$match"]["file"] = re.compile("^src\/mongo")
 
         if specifier == "line":
-            # Fill pipeline with gitHash and buildID info
-            file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
-            file_line_pipeline.insert(0, match)
-
-            # Get line results
-            cursor = yield self.application.collection.aggregate(file_line_pipeline, cursor={})
-            while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                amountAdded = 0
-                if bsonobj["count"] != 0:
-                    amountAdded = 1
-
-                # Check if there exists an entry for this file
-                if bsonobj["_id"]["file"] in results:
-                    if "lineCount" in results[bsonobj["_id"]["file"]]:
-                        results[bsonobj["_id"]["file"]]["lineCovCount"]+= amountAdded
-                        results[bsonobj["_id"]["file"]]["lineCount"] += 1
-                    else:
-                        results[bsonobj["_id"]["file"]]["lineCovCount"] = amountAdded
-                        results[bsonobj["_id"]["file"]]["lineCount"] = 1
-
-                # Otherwise, create a new entry
-                else:
-                    results[bsonobj["_id"]["file"]] = {}
-                    results[bsonobj["_id"]["file"]]["lineCovCount"] = amountAdded
-                    results[bsonobj["_id"]["file"]]["lineCount"] = 1
+            pipeline = copy.copy(pipelines.file_line_pipeline)
+            count_key = "lineCount"
+            cov_count_key = "lineCovCount"
 
         else:
-            file_func_pipeline = copy.copy(pipelines.file_func_pipeline)
-            file_func_pipeline.insert(0, match)
+            pipeline = copy.copy(pipelines.file_func_pipeline)
+            count_key = "funcCount"
+            cov_count_key = "funcCovCount"
 
-            # Get function results
-            cursor = yield self.application.collection.aggregate(file_func_pipeline, cursor={})
-            while (yield cursor.fetch_next):
-                bsonobj = cursor.next_object()
-                amountAdded = 0 # How much to add to coverage count
+        pipeline.insert(0, match)
 
-                # Check if function got executed
-                if bsonobj["count"] != 0:
-                    amountAdded = 1 
-   
-                # Check if there exists an entry for this file
-                if bsonobj["_id"]["file"] in results:
-               
-                    # Check if there exists function coverage data
-                    if "funcCovCount" in results[bsonobj["_id"]["file"]]:
-                        results[bsonobj["_id"]["file"]]["funcCovCount"]+= amountAdded
-                        results[bsonobj["_id"]["file"]]["funcCount"] += 1
+        # Get line results
+        cursor = yield self.application.collection.aggregate(pipeline, cursor={})
+        while (yield cursor.fetch_next):
+            bsonobj = cursor.next_object()
+            amountAdded = 0
+            if bsonobj["count"] != 0:
+                amountAdded = 1
 
-                    # Otherwise, initialize function coverage values
-                    else:
-                        results[bsonobj["_id"]["file"]]["funcCovCount"] = amountAdded
-                        results[bsonobj["_id"]["file"]]["funcCount"] = 1
+            # Check if there exists an entry for this file
+            key = bsonobj["_id"]["file"]
+            if key in results:
 
-                # Otherwise, create a new entry
+                if count_key in results[key]:
+                    results[key][cov_count_key]+= amountAdded
+                    results[key][count_key] += 1
+
                 else:
-                    results[bsonobj["_id"]["file"]] = {}
-                    results[bsonobj["_id"]["file"]]["funcCovCount"] = amountAdded
-                    results[bsonobj["_id"]["file"]]["funcCount"] = 1
+                    results[key][cov_count_key] = amountAdded
+                    results[key][count_key] = 1
+
+            # Otherwise, create a new entry
+            else:
+                results[key] = {}
+                results[key][cov_count_key] = amountAdded
+                results[key][count_key] = 1
+
         raise gen.Return(results)
 
     @tornado.web.asynchronous
