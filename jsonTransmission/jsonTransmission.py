@@ -110,10 +110,11 @@ class Application(tornado.web.Application):
             response = http_client.fetch(request)
             responseDict = json.loads(response.body)
             content = base64.b64decode(responseDict["content"])
-            lineCount = string.count(content, "\n")
+            lineCount = content.count("\n")
     
-        except tornado.httpclient.HTTPError as e:
-            return "NULL", 0 
+        except tornado.httpclient.HTTPError:
+            content = "None"
+            lineCount = 0
         
         http_client.close()
         return content, lineCount
@@ -128,6 +129,7 @@ class MainHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
     def post(self):
+        # GET method with appropriate redirect for user friendliness?
         if self.request.headers.get("Content-Type") == "application/json":
             self.json_args = json_decode(self.request.body)
       
@@ -136,13 +138,13 @@ class MainHandler(tornado.web.RequestHandler):
             self.write("\nRecord for " + self.json_args.get("file") + 
                        " inserted!\n")
         else:
-            self.write("\nError!\n")
+            self.write_error("\n422: Unprocessable Entity\n")
 
 
 class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def getDirectoryResults(self, results, specifier, gitHash, buildID, **kwargs):
-        """Retreieve coverage data for directories.
+        """Retrieve coverage data for directories.
 
         results - dictionary in which results are stored
         specifier - e.g. "line" or "func"
@@ -167,7 +169,6 @@ class DataHandler(tornado.web.RequestHandler):
             file_line_pipeline.insert(0, match)
 
             # Get line results
-            results = {} # Store coverage data
             cursor = yield self.application.collection.aggregate(file_line_pipeline, cursor={})
             while (yield cursor.fetch_next):
                 bsonobj = cursor.next_object()
@@ -329,7 +330,7 @@ class DataHandler(tornado.web.RequestHandler):
                         result["counts"][bsonobj["_id"]["line"]] += bsonobj["count"]
                 
                 if not result["counts"]:
-                    self.write(json.dumps({"result": "NULL"}))
+                    self.write(json.dumps({"result": "None"}))
                     return
 
                 self.write(json.dumps(result))
@@ -340,7 +341,7 @@ class DataHandler(tornado.web.RequestHandler):
                 fileName = urllib.unquote(args["file"][0])
                 (content, lineCount) = self.application.requestGitHubFile(gitHash, fileName)
 
-                if content == "NULL":
+                if content == "None":
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash", "File name"]})
                     return
                 
