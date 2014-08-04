@@ -1,6 +1,12 @@
 <html>
  <head>
   <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>            
+  <!-- Latest compiled and minified CSS -->
+  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+  <!-- Latest compiled and minified JavaScript -->
+  <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+  <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=PT+Sans">
   <script>
      $(window).resize(function () { 
         $('body').css('padding-top', parseInt($('#nav').css("height"))+10);
@@ -11,6 +17,25 @@
         });
   </script>
   <style>
+   body {
+       font-family: "PT Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
+   }
+
+   .navbar-inverse {
+       background-image: none;
+       background-color: rgb(59, 41, 31);
+       border: none !important;
+   }
+
+   .navbar-inverse .navbar-brand {
+       color: #95867f;
+   }
+
+   .navbar-brand {
+       font-weight: normal;
+       text-shadow: none;
+       -webkit-font-smoothing: antialiased;
+   }
 
    table.highlighttable {
        font-size: 10px;
@@ -26,6 +51,10 @@
        width: 50%;
        float: right;
        overflow-x: scroll;
+   }
+
+   td {
+       font-size: 10px;
    }
 
   </style>
