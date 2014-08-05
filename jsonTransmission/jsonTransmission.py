@@ -129,7 +129,8 @@ class MainHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
     def post(self):
-        # GET method with appropriate redirect for user friendliness?
+        # TODO: GET method with appropriate redirect for user friendliness?
+        # redirect to /report home page
         if self.request.headers.get("Content-Type") == "application/json":
             self.json_args = json_decode(self.request.body)
       
@@ -300,12 +301,13 @@ class DataHandler(tornado.web.RequestHandler):
                 result["counts"] = {}
                 while (yield cursor.fetch_next):
                     bsonobj = cursor.next_object()
+                    key = bsonobj["_id"]["line"]
                     if not "file" in result:
                         result["file"] = bsonobj["_id"]["file"]
-                    if not bsonobj["_id"]["line"] in result["counts"]:
-                        result["counts"][bsonobj["_id"]["line"]] = bsonobj["count"] 
+                    if not key in result["counts"]:
+                        result["counts"][key] = bsonobj["count"] 
                     else:
-                        result["counts"][bsonobj["_id"]["line"]] += bsonobj["count"]
+                        result["counts"][key] += bsonobj["count"]
                 
                 if not result["counts"]:
                     self.write(json.dumps({"result": "None"}))
