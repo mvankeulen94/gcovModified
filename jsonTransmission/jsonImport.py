@@ -74,6 +74,10 @@ def doJSONImport():
                       action="store_true",
                       default=False)
 
+    parser.add_option("-d", "--date", dest="date",
+                      help="date of build",
+                      default=None)
+
     (options, args) = parser.parse_args()
     
     if options.ghash is None:
@@ -104,8 +108,15 @@ def doJSONImport():
         print "\nERROR: Must specify root directory \n"
         sys.exit(-1)
 
+    if options.date is None:
+        print "\nERROR: Must specify date \n"
+        sys.exit(-1)
+
     http_client = tornado.httpclient.HTTPClient()
-   
+
+    # Check if date is properly formatted 
+    date = datetime.datetime.strptime(options.date, "%Y-%m-%dT%H:%M:%S.%f")
+ 
     if options.recurse:
         # Walk through files in root
         for dirPath, subDirs, fileNames in os.walk(options.root):
@@ -132,7 +143,7 @@ def doJSONImport():
     metaRecord = {}
     metaRecord["_id"] = {"buildID": options.build,
                          "gitHash": options.ghash}
-    metaRecord["date"] = str(datetime.datetime.now())
+    metaRecord["date"] = options.date 
     metaRecord["branch"] = options.branch
     metaRecord["platform"] = options.pform
        

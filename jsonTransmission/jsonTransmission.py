@@ -407,6 +407,8 @@ class CacheHandler(tornado.web.RequestHandler):
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
             json_args["testNames"] = bsonobj["testNames"]
+        
+        json_args["date"] = datetime.datetime.strptime(json_args["date"], "%Y-%m-%dT%H:%M:%S.%f")
 
         # Insert meta-information
         try:
