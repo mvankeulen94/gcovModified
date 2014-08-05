@@ -31,6 +31,8 @@ import json
 from bson.json_util import dumps as bsondumps
 import re
 
+import datetime
+
 import tornado.ioloop
 import tornado.web
 from tornado.escape import json_decode
@@ -132,11 +134,11 @@ class MainHandler(tornado.web.RequestHandler):
         # TODO: GET method with appropriate redirect for user friendliness?
         # redirect to /report home page
         if self.request.headers.get("Content-Type") == "application/json":
-            self.json_args = json_decode(self.request.body)
+            json_args = json_decode(self.request.body)
       
             # Insert information
-            result = yield self.application.collection.insert(self.json_args)
-            self.write("\nRecord for " + self.json_args.get("file") + 
+            result = yield self.application.collection.insert(json_args)
+            self.write("\nRecord for " + json_args.get("file") + 
                        " inserted!\n")
         else:
             self.write_error("\n422: Unprocessable Entity\n")
@@ -347,15 +349,15 @@ class CacheHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
     def post(self):
-        self.json_args = json_decode(self.request.body)
-        if not ("gitHash" in self.json_args["_id"] and 
-                "buildID" in self.json_args["_id"]):
+        json_args = json_decode(self.request.body)
+        if not ("gitHash" in json_args["_id"] and 
+                "buildID" in json_args["_id"]):
             self.write("Error!\n")
             return
 
         # Generate line count results
-        gitHash = self.json_args["_id"]["gitHash"]
-        buildID = self.json_args["_id"]["buildID"]
+        gitHash = json_args["_id"]["gitHash"]
+        buildID = json_args["_id"]["buildID"]
         self.write(gitHash + ", " + buildID)
         # Add option to specify what pattern to start with
         pipeline = [{"$match":{"buildID": buildID, "gitHash": gitHash,
@@ -375,9 +377,9 @@ class CacheHandler(tornado.web.RequestHandler):
             total += count
             noexecTotal += noexec
 
-        self.json_args["lineCount"] = total
-        self.json_args["lineCovCount"] = total-noexecTotal
-        self.json_args["lineCovPercentage"] = round(float(total-noexecTotal)/total * 100, 2)
+        json_args["lineCount"] = total
+        json_args["lineCovCount"] = total-noexecTotal
+        json_args["lineCovPercentage"] = round(float(total-noexecTotal)/total * 100, 2)
 
         # Generate function results
         pipeline = [{"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"},
@@ -393,9 +395,9 @@ class CacheHandler(tornado.web.RequestHandler):
             if count == 0:
                 noexec += 1
 
-        self.json_args["funcCount"] = total
-        self.json_args["funcCovCount"] = total-noexec
-        self.json_args["funcCovPercentage"] = round(float(total-noexec)/total * 100, 2)
+        json_args["funcCount"] = total
+        json_args["funcCovCount"] = total-noexec
+        json_args["funcCovPercentage"] = round(float(total-noexec)/total * 100, 2)
 
         # Retrieve test name list
         match = {"$match": {"buildID": buildID, "gitHash": gitHash}}
@@ -404,11 +406,11 @@ class CacheHandler(tornado.web.RequestHandler):
         cursor =  yield self.application.collection.aggregate(testname_pipeline, cursor={})
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
-            self.json_args["testNames"] = bsonobj["testNames"]
+            json_args["testNames"] = bsonobj["testNames"]
 
         # Insert meta-information
         try:
-            result = yield self.application.metaCollection.update({"_id.buildID": buildID, "_id.gitHash": gitHash}, self.json_args, upsert=True)
+            result = yield self.application.metaCollection.update({"_id.buildID": buildID, "_id.gitHash": gitHash}, json_args, upsert=True)
         except tornado.httpclient.HTTPError as e:
             print "Error:", e
 
@@ -416,7 +418,7 @@ class CacheHandler(tornado.web.RequestHandler):
         line_pipeline = copy.copy(pipelines.line_pipeline)
         function_pipeline = copy.copy(pipelines.function_pipeline)
 
-        match = {"$match": {"buildID": self.json_args["_id"]["buildID"], "gitHash": self.json_args["_id"]["gitHash"],
+        match = {"$match": {"buildID": json_args["_id"]["buildID"], "gitHash": json_args["_id"]["gitHash"],
                             "file": re.compile("^src\/mongo")}}
 
         line_pipeline.insert(0, match)
