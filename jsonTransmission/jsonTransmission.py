@@ -204,8 +204,6 @@ class DataHandler(tornado.web.RequestHandler):
                 results[key][cov_count_key] = amountAdded
                 results[key][count_key] = 1
 
-        raise gen.Return(results)
-
     @tornado.web.asynchronous
     @gen.coroutine
     def get(self):
@@ -245,13 +243,13 @@ class DataHandler(tornado.web.RequestHandler):
 
             if "testName" in args:
                 testName = urllib.unquote(args.get("testName")[0])
-                results = yield self.getDirectoryResults(results, "line", gitHash, buildID, directory=directory, testName=testName)
-                results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory=directory, testName=testName)
+                yield self.getDirectoryResults(results, "line", gitHash, buildID, directory=directory, testName=testName)
+                yield self.getDirectoryResults(results, "func", gitHash, buildID, directory=directory, testName=testName)
                 additionalInfo["testName"] = testName
            
             else:
-                results = yield self.getDirectoryResults(results, "line", gitHash, buildID, directory=directory)
-                results = yield self.getDirectoryResults(results, "func", gitHash, buildID, directory=directory)
+                yield self.getDirectoryResults(results, "line", gitHash, buildID, directory=directory)
+                yield self.getDirectoryResults(results, "func", gitHash, buildID, directory=directory)
 
             if not results:
                 self.render("templates/error.html", additionalInfo={"errorSources": ["Git hash", "Build ID", "Directory", "Test name"]})
@@ -516,7 +514,6 @@ class ReportHandler(tornado.web.RequestHandler):
                 results[bsonobj["_id"]["dir"]]["funcCovCount"] = bsonobj["funcCovCount"]
                 results[bsonobj["_id"]["dir"]]["funcCovPercentage"] = round(float(funcCovCount)/funcCount * 100, 2)
 
-        raise gen.Return(results)
 
     @tornado.web.asynchronous
     @gen.coroutine
@@ -567,12 +564,12 @@ class ReportHandler(tornado.web.RequestHandler):
             if "testName" in args and urllib.unquote(args["testName"][0]) != "All tests":
                 testName = urllib.unquote(args.get("testName")[0])
                 additionalInfo["testName"] = testName
-                results = yield self.getBuildGitHashResults(results, "line", gitHash, buildID, testName=testName)
-                results = yield self.getBuildGitHashResults(results, "func", gitHash, buildID, testName=testName)
+                yield self.getBuildGitHashResults(results, "line", gitHash, buildID, testName=testName)
+                yield self.getBuildGitHashResults(results, "func", gitHash, buildID, testName=testName)
 
             else:
-                results = yield self.getBuildGitHashResults(results, "line", gitHash, buildID)
-                results = yield self.getBuildGitHashResults(results, "func", gitHash, buildID)
+                yield self.getBuildGitHashResults(results, "line", gitHash, buildID)
+                yield self.getBuildGitHashResults(results, "func", gitHash, buildID)
 
             if not results:
                 self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash", "Test name"]})
@@ -625,7 +622,7 @@ class CompareHandler(tornado.web.RequestHandler):
                 directory = urllib.unquote(args.get("dir")[0])
 
                 # Get coverage comparison data
-                results = yield self.getComparisonData(buildIDs, directory=directory)
+                yield self.getComparisonData(results, buildIDs, directory=directory)
 
                 if not results:
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID 1", "Build ID 2", "Directory"]})
@@ -666,8 +663,9 @@ class CompareHandler(tornado.web.RequestHandler):
            
             # Build comparison
             else:
+                results = {}
                 # Get coverage comparison data
-                results = yield self.getComparisonData(buildIDs)
+                yield self.getComparisonData(results, buildIDs)
 
                 if not results:
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID 1", "Build ID 2"]})
@@ -679,8 +677,8 @@ class CompareHandler(tornado.web.RequestHandler):
                             buildID2=buildID2, results=results)
     
     @gen.coroutine            
-    def getComparisonData(self, buildIDs, **kwargs):           
-        results = {} # Store coverage data
+    def getComparisonData(self, results, buildIDs, **kwargs):           
+        """Get coverage comparison data for buildIDs."""
         for i in range(len(buildIDs)):
 
             if "directory" in kwargs:
@@ -730,7 +728,6 @@ class CompareHandler(tornado.web.RequestHandler):
             for key in results.keys():
                 if "lineCovCount" + str(i+1) in results[key]:
                     results[key]["lineCovPercentage" + str(i+1)] = round(float(results[key]["lineCovCount" + str(i+1)])/results[key]["lineCount" + str(i+1)] * 100, 2)
-        raise gen.Return(results)
 
 
     def addCoverageComparison(self, results):
