@@ -37,7 +37,7 @@ def doJSONImport():
     """Insert all JSON files from root directory and below into database."""
 
     parser = optparse.OptionParser(usage="""\
-                                   %prog [gitHash] [rootPath]
+                                   %prog [git_hash] [rootPath]
                                    [buildID] [connectionstring]
                                    [testname] [branch] [platform]""")
 
@@ -142,7 +142,7 @@ def doJSONImport():
     # Gather meta info
     metaRecord = {}
     metaRecord["_id"] = {"buildID": options.build,
-                         "gitHash": options.ghash}
+                         "git_hash": options.ghash}
     metaRecord["date"] = options.date 
     metaRecord["branch"] = options.branch
     metaRecord["platform"] = options.pform
@@ -160,13 +160,13 @@ def doJSONImport():
     http_client.close()
 
 
-def doImportFile(fileName, gitHash, buildID, testName, http_client, url):
+def doImportFile(fileName, git_hash, buildID, testName, http_client, url):
     """Import contents of a single file into database."""
     for line in open(fileName, "r"):
         if line == "\n":
             continue
         record = json.loads(line)
-        record["gitHash"] = gitHash 
+        record["git_hash"] = git_hash 
         record["buildID"] = buildID 
         record["testName"] = testName 
     

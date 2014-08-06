@@ -31,7 +31,7 @@ function_pipeline = [
 	{
 		"$project" : {
 			"file" : 1,
-			"gitHash" : 1,
+			"git_hash" : 1,
 			"buildID" : 1,
 			"dir" : 1,
 			"functions" : 1
@@ -44,7 +44,7 @@ function_pipeline = [
 		"$group" : {
 			"_id" : {
 				"file" : "$file",
-				"gitHash" : "$gitHash",
+				"git_hash" : "$git_hash",
 				"buildID" : "$buildID",
 				"line" : "$functions.ln",
 				"dir" : "$dir"
@@ -58,7 +58,7 @@ function_pipeline = [
 		"$group" : {
 			"_id" : {
 				"file" : "$_id.file",
-				"gitHash" : "$_id.gitHash",
+				"git_hash" : "$_id.git_hash",
 				"buildID" : "$_id.buildID",
 				"line" : "$_id.line",
 				"dir" : "$_id.dir"
@@ -83,7 +83,7 @@ function_pipeline = [
 		"$group" : {
 			"_id" : {
 				"dir" : "$_id.dir",
-				"gitHash" : "$_id.gitHash",
+				"git_hash" : "$_id.git_hash",
 				"buildID" : "$_id.buildID"
 			},
 			"funcCount" : {
@@ -100,7 +100,7 @@ line_pipeline = [
 	{
 		"$project" : {
 			"file" : 1,
-			"gitHash" : 1,
+			"git_hash" : 1,
 			"buildID" : 1,
 			"dir" : 1,
 			"lc" : 1
@@ -113,7 +113,7 @@ line_pipeline = [
 		"$group" : {
 			"_id" : {
 				"file" : "$file",
-				"gitHash" : "$gitHash",
+				"git_hash" : "$git_hash",
 				"buildID" : "$buildID",
 				"line" : "$lc.ln",
 				"dir" : "$dir"
@@ -128,7 +128,7 @@ line_pipeline = [
 			"_id" : {
 				"file" : "$_id.file",
 				"line" : "$_id.line",
-				"gitHash" : "$_id.gitHash",
+				"git_hash" : "$_id.git_hash",
 				"buildID" : "$_id.buildID",
 				"dir" : "$_id.dir"
 			},
@@ -152,7 +152,7 @@ line_pipeline = [
 		"$group" : {
 			"_id" : {
 				"dir" : "$_id.dir",
-				"gitHash" : "$_id.gitHash",
+				"git_hash" : "$_id.git_hash",
 				"buildID" : "$_id.buildID"
 			},
 			"lineCount" : {
@@ -256,14 +256,14 @@ testname_pipeline = [
 	{
 		"$project" : {
 			"buildID" : 1,
-			"gitHash" : 1,
+			"git_hash" : 1,
 			"testName" : 1
 		}
 	},
 	{
 		"$group" : {
 			"_id" : {
-				"gitHash" : "$gitHash",
+				"git_hash" : "$git_hash",
 				"buildID" : "$buildID"
 			},
 			"testNames" : {

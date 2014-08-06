@@ -20,11 +20,11 @@
          xmlHttp = new XMLHttpRequest();
          if (identifier == "A")
          {
-             xmlHttp.open("GET", "/data?buildID={{ buildID1 }}&gitHash={{ gitHash1 }}&file={{ fileName }}&counts=true", false);
+             xmlHttp.open("GET", "/data?buildID={{ buildID1 }}&git_hash={{ git_hash1 }}&file={{ fileName }}&counts=true", false);
          }
          else 
          {
-             xmlHttp.open("GET", "/data?buildID={{ buildID2 }}&gitHash={{ gitHash2 }}&file={{ fileName }}&counts=true", false);
+             xmlHttp.open("GET", "/data?buildID={{ buildID2 }}&git_hash={{ git_hash2 }}&file={{ fileName }}&counts=true", false);
          }
  
          xmlHttp.send(null);

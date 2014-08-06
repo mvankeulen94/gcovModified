@@ -19,7 +19,7 @@
       </tr>
       <tr>
        <td>Git hash</td>
-       <td>{{ additionalInfo['gitHash'] }}</td>
+       <td>{{ additionalInfo['git_hash'] }}</td>
       </tr>
       <tr>
        <td>Branch</td>
@@ -48,7 +48,7 @@
      <tbody>
       {% for key in sorted(results.keys()) %}
       <tr>
-          <td><a href="/data?buildID={{ url_escape(additionalInfo['buildID']) }}&gitHash={{ url_escape(additionalInfo['gitHash']) }}&file={{ url_escape(key) }}{% if 'testName' in additionalInfo %}&testName={{ url_escape(additionalInfo['testName'])}}{% end %}">{{ key[additionalInfo['clip']:] }}</a></td>
+          <td><a href="/data?buildID={{ url_escape(additionalInfo['buildID']) }}&git_hash={{ url_escape(additionalInfo['git_hash']) }}&file={{ url_escape(key) }}{% if 'testName' in additionalInfo %}&testName={{ url_escape(additionalInfo['testName'])}}{% end %}">{{ key[additionalInfo['clip']:] }}</a></td>
        {% if 'lineCount' in results[key] %}
        <td>{{ results[key]['lineCovCount'] }}/{{ results[key]['lineCount'] }}</td>
        <td>{{ results[key]['lineCovPercentage'] }}</td>

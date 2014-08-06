@@ -11,7 +11,7 @@
     <script>
         var xmlHttp = null;
         xmlHttp = new XMLHttpRequest();
-        xmlHttp.open("GET", "/data?buildID={{ additionalInfo['buildID'] }}&gitHash={{ additionalInfo['gitHash'] }}&file={{ additionalInfo['fileName'] }}&counts=true{% if 'testName' in additionalInfo %}&testName={{ additionalInfo['testName'] }}{% end %}", false);
+        xmlHttp.open("GET", "/data?buildID={{ additionalInfo['buildID'] }}&git_hash={{ additionalInfo['git_hash'] }}&file={{ additionalInfo['fileName'] }}&counts=true{% if 'testName' in additionalInfo %}&testName={{ additionalInfo['testName'] }}{% end %}", false);
         xmlHttp.send(null);
         result = JSON.parse(xmlHttp.responseText);
         var coveredLines = [];

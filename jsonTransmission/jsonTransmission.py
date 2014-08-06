@@ -84,19 +84,19 @@ class Application(tornado.web.Application):
 
     # TODO: move to outside Application class
     @gen.coroutine
-    def getMetaDocument(self, buildID, gitHash=None):
+    def getMetaDocument(self, buildID, git_hash=None):
         """Retrieve meta document for buildID (and git hash)."""
         query = {"_id.buildID": buildID}
         
         # Add git hash if applicable
-        if gitHash:
-            query["_id.gitHash"] = gitHash 
+        if git_hash:
+            query["_id.git_hash"] = git_hash 
 
         doc = yield self.metaCollection.find_one(query)
         raise gen.Return(doc)
 
-    def requestGitHubFile(self, gitHash, fileName):
-        """Retrieve file from GitHub with gitHash and fileName.
+    def requestGitHubFile(self, git_hash, fileName):
+        """Retrieve file from GitHub with git_hash and fileName.
     
         Return highlighted file content and line count of content.
         """
@@ -104,7 +104,7 @@ class Application(tornado.web.Application):
         repo = "mongo"
         token = self.token
         url = ("https://api.github.com/repos/" + owner + "/" + repo + 
-               "/contents/" + fileName + "?ref=" + gitHash)
+               "/contents/" + fileName + "?ref=" + git_hash)
         headers = {"Authorization": "token " + token}
         http_client = tornado.httpclient.HTTPClient()
         request = tornado.httpclient.HTTPRequest(url=url, headers=headers,
@@ -147,17 +147,17 @@ class MainHandler(tornado.web.RequestHandler):
 
 class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
-    def getDirectoryResults(self, results, specifier, gitHash, buildID, directory, testName=None):
+    def getDirectoryResults(self, results, specifier, git_hash, buildID, directory, testName=None):
         """Retrieve coverage data for directories.
 
         results - dictionary in which results are stored
         specifier - e.g. "line" or "func"
-        gitHash - git hash for which to obtain data
+        git_hash - git hash for which to obtain data
         buildID - build for which to obtain data
         directory - directory for which to obtain data
         testName (optional) - test name for which to obtain data
         """
-        match = {"$match": {"buildID": buildID, "gitHash": gitHash}}
+        match = {"$match": {"buildID": buildID, "git_hash": git_hash}}
 
         if testName:
             match["$match"]["testName"] = testName 
@@ -213,10 +213,10 @@ class DataHandler(tornado.web.RequestHandler):
         query = {}
         cursor = None # Cursor with which to traverse query results
         result = None # Dictionary to store query result
-        gitHash = urllib.unquote(args.get("gitHash")[0])
+        git_hash = urllib.unquote(args.get("git_hash")[0])
         buildID = urllib.unquote(args.get("buildID")[0])
         # Get meta document 
-        doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
+        doc = yield self.application.getMetaDocument(buildID, git_hash=git_hash)
 
         if not doc:
             self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash"]})
@@ -226,7 +226,7 @@ class DataHandler(tornado.web.RequestHandler):
         branch = doc["branch"]
 
         # Gather additional info to be passed to template
-        additionalInfo = {"gitHash": gitHash, 
+        additionalInfo = {"git_hash": git_hash, 
                           "buildID": buildID, 
                           "branch": branch}
 
@@ -241,13 +241,13 @@ class DataHandler(tornado.web.RequestHandler):
 
             if "testName" in args:
                 testName = urllib.unquote(args.get("testName")[0])
-                yield self.getDirectoryResults(results, "line", gitHash, buildID, directory, testName=testName)
-                yield self.getDirectoryResults(results, "func", gitHash, buildID, directory, testName=testName)
+                yield self.getDirectoryResults(results, "line", git_hash, buildID, directory, testName=testName)
+                yield self.getDirectoryResults(results, "func", git_hash, buildID, directory, testName=testName)
                 additionalInfo["testName"] = testName
            
             else:
-                yield self.getDirectoryResults(results, "line", gitHash, buildID, directory)
-                yield self.getDirectoryResults(results, "func", gitHash, buildID, directory)
+                yield self.getDirectoryResults(results, "line", git_hash, buildID, directory)
+                yield self.getDirectoryResults(results, "func", git_hash, buildID, directory)
 
             if not results:
                 self.render("templates/error.html", 
@@ -283,14 +283,14 @@ class DataHandler(tornado.web.RequestHandler):
                 # Send only counts data to client
                 if "testName" in args:
                     file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
-                    match = {"$match": {"buildID": buildID, "gitHash": gitHash, 
+                    match = {"$match": {"buildID": buildID, "git_hash": git_hash, 
                                         "testName": testName, "file": fileName}}
                     file_line_pipeline.insert(0, match)
        
                 else:
-                    # Fill pipeline with gitHash, buildID, and fileName info
+                    # Fill pipeline with git_hash, buildID, and fileName info
                     file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
-                    match = {"$match": {"buildID": buildID, "gitHash": gitHash, "file": fileName}}
+                    match = {"$match": {"buildID": buildID, "git_hash": git_hash, "file": fileName}}
                     file_line_pipeline.insert(0, match)
     
                 cursor =  yield self.application.collection.aggregate(file_line_pipeline, cursor={})
@@ -316,7 +316,7 @@ class DataHandler(tornado.web.RequestHandler):
             else: 
                 # Request file from github
                 fileName = urllib.unquote(args["file"][0])
-                (content, lineCount) = self.application.requestGitHubFile(gitHash, fileName)
+                (content, lineCount) = self.application.requestGitHubFile(git_hash, fileName)
 
                 if content == "None":
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash", "File name"]})
@@ -325,7 +325,7 @@ class DataHandler(tornado.web.RequestHandler):
                 # Add syntax highlighting
                 fileContent = self.application.add_syntax_highlighting(content)
                 # Get meta document 
-                doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
+                doc = yield self.application.getMetaDocument(buildID, git_hash=git_hash)
 
                 if not doc:
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash"]})
@@ -345,17 +345,17 @@ class CacheHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def post(self):
         json_args = json_decode(self.request.body)
-        if not ("gitHash" in json_args["_id"] and 
+        if not ("git_hash" in json_args["_id"] and 
                 "buildID" in json_args["_id"]):
             self.write_error(422)
             return
 
         # Generate line count results
-        gitHash = json_args["_id"]["gitHash"]
+        git_hash = json_args["_id"]["git_hash"]
         buildID = json_args["_id"]["buildID"]
-        self.write(gitHash + ", " + buildID)
+        self.write(git_hash + ", " + buildID)
         # Add option to specify what pattern to start with
-        pipeline = [{"$match":{"buildID": buildID, "gitHash": gitHash,
+        pipeline = [{"$match":{"buildID": buildID, "git_hash": git_hash,
                                "file": re.compile("^src\/mongo")}}, 
                     {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, 
                     {"$group":{"_id":"$file", "count":{"$sum":1}, 
@@ -392,7 +392,7 @@ class CacheHandler(tornado.web.RequestHandler):
         json_args["funcCovPercentage"] = round(float(total-noexecTotal)/total * 100, 2)
 
         # Retrieve test name list
-        match = {"$match": {"buildID": buildID, "gitHash": gitHash}}
+        match = {"$match": {"buildID": buildID, "git_hash": git_hash}}
         testname_pipeline = copy.copy(pipelines.testname_pipeline)
         testname_pipeline.insert(0, match)
         cursor =  yield self.application.collection.aggregate(testname_pipeline, cursor={})
@@ -404,7 +404,7 @@ class CacheHandler(tornado.web.RequestHandler):
 
         # Insert meta-information
         try:
-            result = yield self.application.metaCollection.update({"_id.buildID": buildID, "_id.gitHash": gitHash}, json_args, upsert=True)
+            result = yield self.application.metaCollection.update({"_id.buildID": buildID, "_id.git_hash": git_hash}, json_args, upsert=True)
         except tornado.httpclient.HTTPError as e:
             self.write_error(422)
             return
@@ -413,7 +413,7 @@ class CacheHandler(tornado.web.RequestHandler):
         line_pipeline = copy.copy(pipelines.line_pipeline)
         function_pipeline = copy.copy(pipelines.function_pipeline)
 
-        match = {"$match": {"buildID": json_args["_id"]["buildID"], "gitHash": json_args["_id"]["gitHash"],
+        match = {"$match": {"buildID": json_args["_id"]["buildID"], "git_hash": json_args["_id"]["git_hash"],
                             "file": re.compile("^src\/mongo")}}
 
         line_pipeline.insert(0, match)
@@ -427,7 +427,7 @@ class CacheHandler(tornado.web.RequestHandler):
             lineCount = bsonobj["lineCount"]
             lineCovCount = bsonobj["lineCovCount"]
             bsonobj["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
-            query = {"_id.buildID": buildID, "_id.gitHash": gitHash, 
+            query = {"_id.buildID": buildID, "_id.git_hash": git_hash, 
                      "_id.dir": bsonobj["_id"]["dir"]}
             result = yield self.application.covCollection.update(query, bsonobj, upsert=True)
         
@@ -449,16 +449,16 @@ class CacheHandler(tornado.web.RequestHandler):
 class ReportHandler(tornado.web.RequestHandler):
 
     @gen.coroutine
-    def getBuildGitHashResults(self, results, specifier, gitHash, buildID, testName=None):
+    def getBuildGitHashResults(self, results, specifier, git_hash, buildID, testName=None):
         """Retreieve coverage data for directories.
 
         results - dictionary in which results are stored
         specifier - e.g. "line" or "func"
-        gitHash - git hash for which to obtain data
+        git_hash - git hash for which to obtain data
         buildID - build for which to obtain data
         testName (optional) - test name for which to obtain data
         """
-        match = {"$match": {"buildID": buildID, "gitHash": gitHash,
+        match = {"$match": {"buildID": buildID, "git_hash": git_hash,
                             "file": re.compile("^src\/mongo")}}
 
         if testName:
@@ -474,7 +474,7 @@ class ReportHandler(tornado.web.RequestHandler):
                 line_pipeline.insert(0, match)
                 cursor =  yield self.application.collection.aggregate(line_pipeline, cursor={})
             else:
-                query = {"_id.buildID": buildID, "_id.gitHash": gitHash}
+                query = {"_id.buildID": buildID, "_id.git_hash": git_hash}
                 cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
 
             # Get directory results
@@ -498,7 +498,7 @@ class ReportHandler(tornado.web.RequestHandler):
                 cursor =  yield self.application.collection.aggregate(function_pipeline, cursor={})
 
             else:
-                query = {"_id.buildID": buildID, "_id.gitHash": gitHash}
+                query = {"_id.buildID": buildID, "_id.git_hash": git_hash}
                 cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
 
             # Get directory results
@@ -537,17 +537,17 @@ class ReportHandler(tornado.web.RequestHandler):
             self.render("templates/report.html", results=results)
 
         else:    
-            if args.get("gitHash") == None or args.get("buildID") == None:
+            if args.get("git_hash") == None or args.get("buildID") == None:
                 self.render("templates/error.html", additionalInfo={"errorSources": ["Git hash", "Build ID"]})
                 return
 
-            gitHash = urllib.unquote(args.get("gitHash")[0])
+            git_hash = urllib.unquote(args.get("git_hash")[0])
             buildID = urllib.unquote(args.get("buildID")[0])
             results = {}
             clip=len("src/mongo/")
 
             # Get meta document 
-            doc = yield self.application.getMetaDocument(buildID, gitHash=gitHash)
+            doc = yield self.application.getMetaDocument(buildID, git_hash=git_hash)
     
             if not doc:
                 self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash"]})
@@ -558,19 +558,19 @@ class ReportHandler(tornado.web.RequestHandler):
 
             # Get test names
             testNames = doc["testNames"]
-            additionalInfo = {"gitHash": gitHash, "buildID": buildID,
+            additionalInfo = {"git_hash": git_hash, "buildID": buildID,
                               "branch": branch, "testNames": testNames, 
                               "clip": clip}
             
             if "testName" in args and urllib.unquote(args["testName"][0]) != "All tests":
                 testName = urllib.unquote(args.get("testName")[0])
                 additionalInfo["testName"] = testName
-                yield self.getBuildGitHashResults(results, "line", gitHash, buildID, testName=testName)
-                yield self.getBuildGitHashResults(results, "func", gitHash, buildID, testName=testName)
+                yield self.getBuildGitHashResults(results, "line", git_hash, buildID, testName=testName)
+                yield self.getBuildGitHashResults(results, "func", git_hash, buildID, testName=testName)
 
             else:
-                yield self.getBuildGitHashResults(results, "line", gitHash, buildID)
-                yield self.getBuildGitHashResults(results, "func", gitHash, buildID)
+                yield self.getBuildGitHashResults(results, "line", git_hash, buildID)
+                yield self.getBuildGitHashResults(results, "func", git_hash, buildID)
 
             if not results:
                 self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash", "Test name"]})
@@ -643,24 +643,24 @@ class CompareHandler(tornado.web.RequestHandler):
                 if not doc:
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID 1", "Build ID 2"]})
                     return
-                gitHash1 = doc["_id"]["gitHash"]
+                git_hash1 = doc["_id"]["git_hash"]
 
                 doc = yield self.application.getMetaDocument(buildID2)
                 if not doc:
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID 2"]})
                     return
-                gitHash2 = doc["_id"]["gitHash"]
+                git_hash2 = doc["_id"]["git_hash"]
 
                 fileName = urllib.unquote(args.get("file")[0])
 
                 # Request GitHub files
-                content1, lineCount1 = self.application.requestGitHubFile(gitHash1, fileName)
-                content2, lineCount2 = self.application.requestGitHubFile(gitHash2, fileName)
+                content1, lineCount1 = self.application.requestGitHubFile(git_hash1, fileName)
+                content2, lineCount2 = self.application.requestGitHubFile(git_hash2, fileName)
                 # Add syntax highlighting
                 fileContent1 = self.application.add_syntax_highlighting(content1, identifier="A")
                 fileContent2 = self.application.add_syntax_highlighting(content2, identifier="B")
 
-                self.render("templates/fileCompare.html", buildID1=buildID1, buildID2=buildID2, fileContent1=fileContent1, fileContent2=fileContent2, fileName=fileName, gitHash1=gitHash1, gitHash2=gitHash2, lineCount1=lineCount1, lineCount2=lineCount2)
+                self.render("templates/fileCompare.html", buildID1=buildID1, buildID2=buildID2, fileContent1=fileContent1, fileContent2=fileContent2, fileName=fileName, git_hash1=git_hash1, git_hash2=git_hash2, lineCount1=lineCount1, lineCount2=lineCount2)
            
             # Build comparison
             else:
