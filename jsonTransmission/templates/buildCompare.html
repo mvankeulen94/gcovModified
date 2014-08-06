@@ -1,10 +1,10 @@
 {% extends "tableLayout.html" %}
 {% block header %} 
-    <title>{{ buildID1 }} vs. {{ buildID2 }}</title>
+    <title>{{ build_id1 }} vs. {{ build_id2 }}</title>
 {% end %}
 {% block body %}
     <h3>Coverage Comparison</h3>
-    <h4>{{ buildID1 }} vs. {{ buildID2 }}</h4>
+    <h4>{{ build_id1 }} vs. {{ build_id2 }}</h4>
 
   <div class="main">
    <div class="table-responsive">
@@ -12,8 +12,8 @@
      <thead>
       <tr>
        <th> </th>
-       <th colspan=3 data-toggle="tooltip" title="{{ buildID1 }}" >Build A</th>
-       <th colspan=3 data-toggle="tooltip" title="{{ buildID2 }}">Build B</th>
+       <th colspan=3 data-toggle="tooltip" title="{{ build_id1 }}" >Build A</th>
+       <th colspan=3 data-toggle="tooltip" title="{{ build_id2 }}">Build B</th>
        <th> </th>
       </tr>
       <tr>
@@ -34,7 +34,7 @@
        {% else %}
        <tr>
        {% end %}
-           <td><a href="/compare?buildID1={{ url_escape(buildID1) }}&buildID2={{ url_escape(buildID2) }}&dir={{url_escape(key)}}">{{ key }}</a></td>
+           <td><a href="/compare?build_id1={{ url_escape(build_id1) }}&build_id2={{ url_escape(build_id2) }}&dir={{url_escape(key)}}">{{ key }}</a></td>
         <td>{{ results[key]["lineCount1"] }}</td>
         <td>{{ results[key]["lineCovCount1"] }}</td>
         <td>{{ results[key]["lineCovPercentage1"] }}</td>

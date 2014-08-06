@@ -38,7 +38,7 @@ def doJSONImport():
 
     parser = optparse.OptionParser(usage="""\
                                    %prog [git_hash] [rootPath]
-                                   [buildID] [connectionstring]
+                                   [build_id] [connectionstring]
                                    [testname] [branch] [platform]""")
 
     # add in command line options. Add mongo host/port combo later
@@ -141,7 +141,7 @@ def doJSONImport():
 
     # Gather meta info
     metaRecord = {}
-    metaRecord["_id"] = {"buildID": options.build,
+    metaRecord["_id"] = {"build_id": options.build,
                          "git_hash": options.ghash}
     metaRecord["date"] = options.date 
     metaRecord["branch"] = options.branch
@@ -160,14 +160,14 @@ def doJSONImport():
     http_client.close()
 
 
-def doImportFile(fileName, git_hash, buildID, testName, http_client, url):
+def doImportFile(fileName, git_hash, build_id, testName, http_client, url):
     """Import contents of a single file into database."""
     for line in open(fileName, "r"):
         if line == "\n":
             continue
         record = json.loads(line)
         record["git_hash"] = git_hash 
-        record["buildID"] = buildID 
+        record["build_id"] = build_id 
         record["testName"] = testName 
     
         fileIndex = record["file"].rfind("/") + 1

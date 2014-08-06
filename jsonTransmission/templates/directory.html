@@ -1,6 +1,6 @@
 {% extends "tableLayout.html" %}
 {% block header %}
-   <title>{{ additionalInfo['buildID'] }}, {{ additionalInfo['git_hash'] }}</title>
+   <title>{{ additionalInfo['build_id'] }}, {{ additionalInfo['git_hash'] }}</title>
 {% end %}
 {% block body %}
    <div class="table-responsive">
@@ -14,7 +14,7 @@
      <tbody>
       <tr>
        <td>Build ID</td>
-       <td>{{ additionalInfo['buildID'] }}</td>
+       <td>{{ additionalInfo['build_id'] }}</td>
       </tr>
       <tr>
        <td>Git hash</td>
@@ -35,7 +35,7 @@
    </div>
    <div id="test-selection">
      <form action="/report" method="get">
-     <input value="{{ additionalInfo['buildID'] }}" name="buildID" type="hidden">
+     <input value="{{ additionalInfo['build_id'] }}" name="build_id" type="hidden">
      <input value="{{ additionalInfo['git_hash'] }}" name="git_hash" type="hidden">
      <div class="table-responsive">
       <table class="table table-striped">
@@ -81,7 +81,7 @@
      <tbody>
       {% for key in sorted(dirResults.keys()) %}
       <tr>
-       <td><a href="/data?buildID={{ url_escape(additionalInfo['buildID']) }}&git_hash={{ url_escape(additionalInfo['git_hash']) }}&dir={{ url_escape(key) }}{% if 'testName' in additionalInfo %}&testName={{ url_escape(additionalInfo['testName'])}}{% end %}">{{ key[additionalInfo['clip']:] }}</a></td>
+       <td><a href="/data?build_id={{ url_escape(additionalInfo['build_id']) }}&git_hash={{ url_escape(additionalInfo['git_hash']) }}&dir={{ url_escape(key) }}{% if 'testName' in additionalInfo %}&testName={{ url_escape(additionalInfo['testName'])}}{% end %}">{{ key[additionalInfo['clip']:] }}</a></td>
        {% if 'lineCount' in dirResults[key] %}
        <td>{{ dirResults[key]['lineCovCount'] }}/{{ dirResults[key]['lineCount'] }}</td>
        <td>{{ dirResults[key]['lineCovPercentage'] }}</td>

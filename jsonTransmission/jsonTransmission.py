@@ -84,9 +84,9 @@ class Application(tornado.web.Application):
 
     # TODO: move to outside Application class
     @gen.coroutine
-    def getMetaDocument(self, buildID, git_hash=None):
-        """Retrieve meta document for buildID (and git hash)."""
-        query = {"_id.buildID": buildID}
+    def getMetaDocument(self, build_id, git_hash=None):
+        """Retrieve meta document for build_id (and git hash)."""
+        query = {"_id.build_id": build_id}
         
         # Add git hash if applicable
         if git_hash:
@@ -147,17 +147,17 @@ class MainHandler(tornado.web.RequestHandler):
 
 class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
-    def getDirectoryResults(self, results, specifier, git_hash, buildID, directory, testName=None):
+    def getDirectoryResults(self, results, specifier, git_hash, build_id, directory, testName=None):
         """Retrieve coverage data for directories.
 
         results - dictionary in which results are stored
         specifier - e.g. "line" or "func"
         git_hash - git hash for which to obtain data
-        buildID - build for which to obtain data
+        build_id - build for which to obtain data
         directory - directory for which to obtain data
         testName (optional) - test name for which to obtain data
         """
-        match = {"$match": {"buildID": buildID, "git_hash": git_hash}}
+        match = {"$match": {"build_id": build_id, "git_hash": git_hash}}
 
         if testName:
             match["$match"]["testName"] = testName 
@@ -214,9 +214,9 @@ class DataHandler(tornado.web.RequestHandler):
         cursor = None # Cursor with which to traverse query results
         result = None # Dictionary to store query result
         git_hash = urllib.unquote(args.get("git_hash")[0])
-        buildID = urllib.unquote(args.get("buildID")[0])
+        build_id = urllib.unquote(args.get("build_id")[0])
         # Get meta document 
-        doc = yield self.application.getMetaDocument(buildID, git_hash=git_hash)
+        doc = yield self.application.getMetaDocument(build_id, git_hash=git_hash)
 
         if not doc:
             self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash"]})
@@ -227,7 +227,7 @@ class DataHandler(tornado.web.RequestHandler):
 
         # Gather additional info to be passed to template
         additionalInfo = {"git_hash": git_hash, 
-                          "buildID": buildID, 
+                          "build_id": build_id, 
                           "branch": branch}
 
         if "dir" in args or "testName" in args and "dir" in args:
@@ -241,13 +241,13 @@ class DataHandler(tornado.web.RequestHandler):
 
             if "testName" in args:
                 testName = urllib.unquote(args.get("testName")[0])
-                yield self.getDirectoryResults(results, "line", git_hash, buildID, directory, testName=testName)
-                yield self.getDirectoryResults(results, "func", git_hash, buildID, directory, testName=testName)
+                yield self.getDirectoryResults(results, "line", git_hash, build_id, directory, testName=testName)
+                yield self.getDirectoryResults(results, "func", git_hash, build_id, directory, testName=testName)
                 additionalInfo["testName"] = testName
            
             else:
-                yield self.getDirectoryResults(results, "line", git_hash, buildID, directory)
-                yield self.getDirectoryResults(results, "func", git_hash, buildID, directory)
+                yield self.getDirectoryResults(results, "line", git_hash, build_id, directory)
+                yield self.getDirectoryResults(results, "func", git_hash, build_id, directory)
 
             if not results:
                 self.render("templates/error.html", 
@@ -283,14 +283,14 @@ class DataHandler(tornado.web.RequestHandler):
                 # Send only counts data to client
                 if "testName" in args:
                     file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
-                    match = {"$match": {"buildID": buildID, "git_hash": git_hash, 
+                    match = {"$match": {"build_id": build_id, "git_hash": git_hash, 
                                         "testName": testName, "file": fileName}}
                     file_line_pipeline.insert(0, match)
        
                 else:
-                    # Fill pipeline with git_hash, buildID, and fileName info
+                    # Fill pipeline with git_hash, build_id, and fileName info
                     file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
-                    match = {"$match": {"buildID": buildID, "git_hash": git_hash, "file": fileName}}
+                    match = {"$match": {"build_id": build_id, "git_hash": git_hash, "file": fileName}}
                     file_line_pipeline.insert(0, match)
     
                 cursor =  yield self.application.collection.aggregate(file_line_pipeline, cursor={})
@@ -325,7 +325,7 @@ class DataHandler(tornado.web.RequestHandler):
                 # Add syntax highlighting
                 fileContent = self.application.add_syntax_highlighting(content)
                 # Get meta document 
-                doc = yield self.application.getMetaDocument(buildID, git_hash=git_hash)
+                doc = yield self.application.getMetaDocument(build_id, git_hash=git_hash)
 
                 if not doc:
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash"]})
@@ -346,16 +346,16 @@ class CacheHandler(tornado.web.RequestHandler):
     def post(self):
         json_args = json_decode(self.request.body)
         if not ("git_hash" in json_args["_id"] and 
-                "buildID" in json_args["_id"]):
+                "build_id" in json_args["_id"]):
             self.write_error(422)
             return
 
         # Generate line count results
         git_hash = json_args["_id"]["git_hash"]
-        buildID = json_args["_id"]["buildID"]
-        self.write(git_hash + ", " + buildID)
+        build_id = json_args["_id"]["build_id"]
+        self.write(git_hash + ", " + build_id)
         # Add option to specify what pattern to start with
-        pipeline = [{"$match":{"buildID": buildID, "git_hash": git_hash,
+        pipeline = [{"$match":{"build_id": build_id, "git_hash": git_hash,
                                "file": re.compile("^src\/mongo")}}, 
                     {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, 
                     {"$group":{"_id":"$file", "count":{"$sum":1}, 
@@ -392,7 +392,7 @@ class CacheHandler(tornado.web.RequestHandler):
         json_args["funcCovPercentage"] = round(float(total-noexecTotal)/total * 100, 2)
 
         # Retrieve test name list
-        match = {"$match": {"buildID": buildID, "git_hash": git_hash}}
+        match = {"$match": {"build_id": build_id, "git_hash": git_hash}}
         testname_pipeline = copy.copy(pipelines.testname_pipeline)
         testname_pipeline.insert(0, match)
         cursor =  yield self.application.collection.aggregate(testname_pipeline, cursor={})
@@ -404,7 +404,7 @@ class CacheHandler(tornado.web.RequestHandler):
 
         # Insert meta-information
         try:
-            result = yield self.application.metaCollection.update({"_id.buildID": buildID, "_id.git_hash": git_hash}, json_args, upsert=True)
+            result = yield self.application.metaCollection.update({"_id.build_id": build_id, "_id.git_hash": git_hash}, json_args, upsert=True)
         except tornado.httpclient.HTTPError as e:
             self.write_error(422)
             return
@@ -413,7 +413,7 @@ class CacheHandler(tornado.web.RequestHandler):
         line_pipeline = copy.copy(pipelines.line_pipeline)
         function_pipeline = copy.copy(pipelines.function_pipeline)
 
-        match = {"$match": {"buildID": json_args["_id"]["buildID"], "git_hash": json_args["_id"]["git_hash"],
+        match = {"$match": {"build_id": json_args["_id"]["build_id"], "git_hash": json_args["_id"]["git_hash"],
                             "file": re.compile("^src\/mongo")}}
 
         line_pipeline.insert(0, match)
@@ -427,7 +427,7 @@ class CacheHandler(tornado.web.RequestHandler):
             lineCount = bsonobj["lineCount"]
             lineCovCount = bsonobj["lineCovCount"]
             bsonobj["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
-            query = {"_id.buildID": buildID, "_id.git_hash": git_hash, 
+            query = {"_id.build_id": build_id, "_id.git_hash": git_hash, 
                      "_id.dir": bsonobj["_id"]["dir"]}
             result = yield self.application.covCollection.update(query, bsonobj, upsert=True)
         
@@ -449,16 +449,16 @@ class CacheHandler(tornado.web.RequestHandler):
 class ReportHandler(tornado.web.RequestHandler):
 
     @gen.coroutine
-    def getBuildGitHashResults(self, results, specifier, git_hash, buildID, testName=None):
+    def getBuildGitHashResults(self, results, specifier, git_hash, build_id, testName=None):
         """Retreieve coverage data for directories.
 
         results - dictionary in which results are stored
         specifier - e.g. "line" or "func"
         git_hash - git hash for which to obtain data
-        buildID - build for which to obtain data
+        build_id - build for which to obtain data
         testName (optional) - test name for which to obtain data
         """
-        match = {"$match": {"buildID": buildID, "git_hash": git_hash,
+        match = {"$match": {"build_id": build_id, "git_hash": git_hash,
                             "file": re.compile("^src\/mongo")}}
 
         if testName:
@@ -474,7 +474,7 @@ class ReportHandler(tornado.web.RequestHandler):
                 line_pipeline.insert(0, match)
                 cursor =  yield self.application.collection.aggregate(line_pipeline, cursor={})
             else:
-                query = {"_id.buildID": buildID, "_id.git_hash": git_hash}
+                query = {"_id.build_id": build_id, "_id.git_hash": git_hash}
                 cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
 
             # Get directory results
@@ -498,7 +498,7 @@ class ReportHandler(tornado.web.RequestHandler):
                 cursor =  yield self.application.collection.aggregate(function_pipeline, cursor={})
 
             else:
-                query = {"_id.buildID": buildID, "_id.git_hash": git_hash}
+                query = {"_id.build_id": build_id, "_id.git_hash": git_hash}
                 cursor = self.application.covCollection.find(query).sort("_id.dir", pymongo.ASCENDING)
 
             # Get directory results
@@ -537,17 +537,17 @@ class ReportHandler(tornado.web.RequestHandler):
             self.render("templates/report.html", results=results)
 
         else:    
-            if args.get("git_hash") == None or args.get("buildID") == None:
+            if args.get("git_hash") == None or args.get("build_id") == None:
                 self.render("templates/error.html", additionalInfo={"errorSources": ["Git hash", "Build ID"]})
                 return
 
             git_hash = urllib.unquote(args.get("git_hash")[0])
-            buildID = urllib.unquote(args.get("buildID")[0])
+            build_id = urllib.unquote(args.get("build_id")[0])
             results = {}
             clip=len("src/mongo/")
 
             # Get meta document 
-            doc = yield self.application.getMetaDocument(buildID, git_hash=git_hash)
+            doc = yield self.application.getMetaDocument(build_id, git_hash=git_hash)
     
             if not doc:
                 self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash"]})
@@ -558,19 +558,19 @@ class ReportHandler(tornado.web.RequestHandler):
 
             # Get test names
             testNames = doc["testNames"]
-            additionalInfo = {"git_hash": git_hash, "buildID": buildID,
+            additionalInfo = {"git_hash": git_hash, "build_id": build_id,
                               "branch": branch, "testNames": testNames, 
                               "clip": clip}
             
             if "testName" in args and urllib.unquote(args["testName"][0]) != "All tests":
                 testName = urllib.unquote(args.get("testName")[0])
                 additionalInfo["testName"] = testName
-                yield self.getBuildGitHashResults(results, "line", git_hash, buildID, testName=testName)
-                yield self.getBuildGitHashResults(results, "func", git_hash, buildID, testName=testName)
+                yield self.getBuildGitHashResults(results, "line", git_hash, build_id, testName=testName)
+                yield self.getBuildGitHashResults(results, "func", git_hash, build_id, testName=testName)
 
             else:
-                yield self.getBuildGitHashResults(results, "line", git_hash, buildID)
-                yield self.getBuildGitHashResults(results, "func", git_hash, buildID)
+                yield self.getBuildGitHashResults(results, "line", git_hash, build_id)
+                yield self.getBuildGitHashResults(results, "func", git_hash, build_id)
 
             if not results:
                 self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash", "Test name"]})
@@ -609,13 +609,13 @@ class CompareHandler(tornado.web.RequestHandler):
         if len(args) == 0:
             return
 
-        if "buildID1" in args:
-            if not "buildID2" in args:
+        if "build_id1" in args:
+            if not "build_id2" in args:
                 return
 
-            buildIDs = [urllib.unquote(args["buildID1"][0]), urllib.unquote(args["buildID2"][0])]
-            buildID1 = buildIDs[0]
-            buildID2 = buildIDs[1]
+            build_ids = [urllib.unquote(args["build_id1"][0]), urllib.unquote(args["build_id2"][0])]
+            build_id1 = build_ids[0]
+            build_id2 = build_ids[1]
 
             # Directory comparison
             if "dir" in args:
@@ -623,7 +623,7 @@ class CompareHandler(tornado.web.RequestHandler):
                 directory = urllib.unquote(args.get("dir")[0])
 
                 # Get coverage comparison data
-                yield self.getComparisonData(results, buildIDs, directory=directory)
+                yield self.getComparisonData(results, build_ids, directory=directory)
 
                 if not results:
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID 1", "Build ID 2", "Directory"]})
@@ -631,21 +631,21 @@ class CompareHandler(tornado.web.RequestHandler):
 
                 self.addCoverageComparison(results)
 
-                self.render("templates/dirCompare.html", buildID1=buildID1, buildID2=buildID2, results=results, directory=directory)
+                self.render("templates/dirCompare.html", build_id1=build_id1, build_id2=build_id2, results=results, directory=directory)
             
             # File comparison
             elif "file" in args:
-                buildID1 = args["buildID1"][0] 
-                buildID2 = args["buildID2"][0]
+                build_id1 = args["build_id1"][0] 
+                build_id2 = args["build_id2"][0]
 
                 # Retrieve git hashes
-                doc = yield self.application.getMetaDocument(buildID1)
+                doc = yield self.application.getMetaDocument(build_id1)
                 if not doc:
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID 1", "Build ID 2"]})
                     return
                 git_hash1 = doc["_id"]["git_hash"]
 
-                doc = yield self.application.getMetaDocument(buildID2)
+                doc = yield self.application.getMetaDocument(build_id2)
                 if not doc:
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID 2"]})
                     return
@@ -660,13 +660,13 @@ class CompareHandler(tornado.web.RequestHandler):
                 fileContent1 = self.application.add_syntax_highlighting(content1, identifier="A")
                 fileContent2 = self.application.add_syntax_highlighting(content2, identifier="B")
 
-                self.render("templates/fileCompare.html", buildID1=buildID1, buildID2=buildID2, fileContent1=fileContent1, fileContent2=fileContent2, fileName=fileName, git_hash1=git_hash1, git_hash2=git_hash2, lineCount1=lineCount1, lineCount2=lineCount2)
+                self.render("templates/fileCompare.html", build_id1=build_id1, build_id2=build_id2, fileContent1=fileContent1, fileContent2=fileContent2, fileName=fileName, git_hash1=git_hash1, git_hash2=git_hash2, lineCount1=lineCount1, lineCount2=lineCount2)
            
             # Build comparison
             else:
                 results = {}
                 # Get coverage comparison data
-                yield self.getComparisonData(results, buildIDs)
+                yield self.getComparisonData(results, build_ids)
 
                 if not results:
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID 1", "Build ID 2"]})
@@ -674,17 +674,17 @@ class CompareHandler(tornado.web.RequestHandler):
 
                 self.addCoverageComparison(results)
     
-                self.render("templates/buildCompare.html", buildID1=buildID1, 
-                            buildID2=buildID2, results=results)
+                self.render("templates/buildCompare.html", build_id1=build_id1, 
+                            build_id2=build_id2, results=results)
     
     @gen.coroutine            
-    def getComparisonData(self, results, buildIDs, directory=None):           
-        """Get coverage comparison data for buildIDs."""
-        for i in range(len(buildIDs)):
+    def getComparisonData(self, results, build_ids, directory=None):           
+        """Get coverage comparison data for build_ids."""
+        for i in range(len(build_ids)):
 
             if directory: 
                 # Fill pipeline with build/directory info
-                match = {"$match": {"buildID": buildIDs[i], "dir": directory}}
+                match = {"$match": {"build_id": build_ids[i], "dir": directory}}
                 file_comp_pipeline = copy.copy(pipelines.file_comp_pipeline)
                 file_comp_pipeline.insert(0, match)
                 cursor = yield self.application.collection.aggregate(file_comp_pipeline, cursor={})
@@ -711,7 +711,7 @@ class CompareHandler(tornado.web.RequestHandler):
                         results[bsonobj["_id"]["file"]]["lineCount" + str(i+1)] = 1
     
             else:
-                query = {"_id.buildID": buildIDs[i]}
+                query = {"_id.build_id": build_ids[i]}
                 cursor =  self.application.covCollection.find(query)
 
                 while (yield cursor.fetch_next):

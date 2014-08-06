@@ -32,7 +32,7 @@ function_pipeline = [
 		"$project" : {
 			"file" : 1,
 			"git_hash" : 1,
-			"buildID" : 1,
+			"build_id" : 1,
 			"dir" : 1,
 			"functions" : 1
 		}
@@ -45,7 +45,7 @@ function_pipeline = [
 			"_id" : {
 				"file" : "$file",
 				"git_hash" : "$git_hash",
-				"buildID" : "$buildID",
+				"build_id" : "$build_id",
 				"line" : "$functions.ln",
 				"dir" : "$dir"
 			},
@@ -59,7 +59,7 @@ function_pipeline = [
 			"_id" : {
 				"file" : "$_id.file",
 				"git_hash" : "$_id.git_hash",
-				"buildID" : "$_id.buildID",
+				"build_id" : "$_id.build_id",
 				"line" : "$_id.line",
 				"dir" : "$_id.dir"
 			},
@@ -84,7 +84,7 @@ function_pipeline = [
 			"_id" : {
 				"dir" : "$_id.dir",
 				"git_hash" : "$_id.git_hash",
-				"buildID" : "$_id.buildID"
+				"build_id" : "$_id.build_id"
 			},
 			"funcCount" : {
 				"$sum" : 1
@@ -101,7 +101,7 @@ line_pipeline = [
 		"$project" : {
 			"file" : 1,
 			"git_hash" : 1,
-			"buildID" : 1,
+			"build_id" : 1,
 			"dir" : 1,
 			"lc" : 1
 		}
@@ -114,7 +114,7 @@ line_pipeline = [
 			"_id" : {
 				"file" : "$file",
 				"git_hash" : "$git_hash",
-				"buildID" : "$buildID",
+				"build_id" : "$build_id",
 				"line" : "$lc.ln",
 				"dir" : "$dir"
 			},
@@ -129,7 +129,7 @@ line_pipeline = [
 				"file" : "$_id.file",
 				"line" : "$_id.line",
 				"git_hash" : "$_id.git_hash",
-				"buildID" : "$_id.buildID",
+				"build_id" : "$_id.build_id",
 				"dir" : "$_id.dir"
 			},
 			"hit" : {
@@ -153,7 +153,7 @@ line_pipeline = [
 			"_id" : {
 				"dir" : "$_id.dir",
 				"git_hash" : "$_id.git_hash",
-				"buildID" : "$_id.buildID"
+				"build_id" : "$_id.build_id"
 			},
 			"lineCount" : {
 				"$sum" : 1
@@ -255,7 +255,7 @@ file_comp_pipeline = [
 testname_pipeline = [
 	{
 		"$project" : {
-			"buildID" : 1,
+			"build_id" : 1,
 			"git_hash" : 1,
 			"testName" : 1
 		}
@@ -264,7 +264,7 @@ testname_pipeline = [
 		"$group" : {
 			"_id" : {
 				"git_hash" : "$git_hash",
-				"buildID" : "$buildID"
+				"build_id" : "$build_id"
 			},
 			"testNames" : {
 				"$addToSet" : "$testName"

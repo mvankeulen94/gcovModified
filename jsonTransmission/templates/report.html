@@ -28,17 +28,17 @@
        <tbody>
        <tr>
         <td>
-         <select class="form-control" name="buildID1">
+         <select class="form-control" name="build_id1">
          {% for result in results %}
-          <option value="{{ result["_id"]["buildID"] }}">{{ result["_id"]["buildID"] }}
+          <option value="{{ result["_id"]["build_id"] }}">{{ result["_id"]["build_id"] }}
           </option>
          {% end %}
          </select>
         </td>
         <td>
-         <select class="form-control" name="buildID2">
+         <select class="form-control" name="build_id2">
          {% for result in results %}
-          <option value="{{ result["_id"]["buildID"] }}">{{ result["_id"]["buildID"] }}
+          <option value="{{ result["_id"]["build_id"] }}">{{ result["_id"]["build_id"] }}
           </option>
          {% end %}
          </select>
@@ -70,7 +70,7 @@
     <tbody>
      {% for result in results %}
      <tr>
-      <td><a href="/report?buildID={{ url_escape(result['_id']['buildID']) }}&git_hash={{ url_escape(result['_id']['git_hash']) }}" data-toggle="tooltip" title="{{ result['_id']['buildID'] }}"> {{ result['_id']['git_hash'] }}</a></td>
+      <td><a href="/report?build_id={{ url_escape(result['_id']['build_id']) }}&git_hash={{ url_escape(result['_id']['git_hash']) }}" data-toggle="tooltip" title="{{ result['_id']['build_id'] }}"> {{ result['_id']['git_hash'] }}</a></td>
       <td>{{ result['date'] }}</td>
       {% if 'lineCount' in result %}
       <td>{{ result['lineCovCount'] }} / {{ result['lineCount'] }}</td>
