@@ -24,33 +24,28 @@
  #    exception statement from all source files in the program, then also delete
  #    it in the license file.
 
-# TODO: reorder imports
-# TODO: fix variable naming conventions
-import pymongo
 import json
 from bson.json_util import dumps as bsondumps
 import re
-
 import datetime
+import ssl
+import base64
+import urllib
+import string
+import copy
 
 import tornado.ioloop
 import tornado.web
 from tornado.escape import json_decode
+import pymongo
 import motor
 from tornado import gen
-import ssl
 import tornado.httpclient
-import base64
-
 from pygments import highlight
 from pygments.lexers import CppLexer
 from pygments.formatters import HtmlFormatter
 
 import pipelines
-
-import urllib
-import string
-import copy
 
 
 class Application(tornado.web.Application):
@@ -68,7 +63,7 @@ class Application(tornado.web.Application):
         self.collection = self.db[conf["collection"]]
         self.meta_collection = self.db[conf["meta_collection"]]
         self.cov_collection = self.db[conf["cov_collection"]]
-        self.httpport = conf["httpport"]
+        self.http_port = conf["http_port"]
         self.token = conf["github_token"]
        
         super(Application, self).__init__([
@@ -82,51 +77,52 @@ class Application(tornado.web.Application):
             (r"/", tornado.web.RedirectHandler, {"url": "/report"}),
         ],)
 
-    # TODO: move to outside Application class
-    @gen.coroutine
-    def get_meta_doc(self, build_id, git_hash=None):
-        """Retrieve meta document for build_id (and git hash)."""
-        query = {"_id.build_id": build_id}
+# TODO: move to outside Application class
+@gen.coroutine
+def get_meta_doc(collection, build_id, git_hash=None):
+    """Retrieve meta document for build_id (and git hash)."""
+    query = {"_id.build_id": build_id}
         
-        # Add git hash if applicable
-        if git_hash:
-            query["_id.git_hash"] = git_hash 
+    # Add git hash if applicable
+    if git_hash:
+        query["_id.git_hash"] = git_hash 
 
-        doc = yield self.meta_collection.find_one(query)
-        raise gen.Return(doc)
+    doc = yield collection.find_one(query)
+    raise gen.Return(doc)
 
-    def get_ghub_file(self, git_hash, file_name):
-        """Retrieve file from GitHub with git_hash and file_name.
+
+def get_ghub_file(token, git_hash, file_name):
+    """Retrieve file from GitHub with git_hash and file_name.
+
+    Return highlighted file content and line count of content.
+    """
+    owner = "mongodb"
+    repo = "mongo"
+    url = ("https://api.github.com/repos/" + owner + "/" + repo + 
+           "/contents/" + file_name + "?ref=" + git_hash)
+    headers = {"Authorization": "token " + token}
+    http_client = tornado.httpclient.HTTPClient()
+    request = tornado.httpclient.HTTPRequest(url=url, headers=headers,
+                                             user_agent="Maria's API Test")
+    try:
+        response = http_client.fetch(request)
+        response_dict = json.loads(response.body)
+        content = base64.b64decode(response_dict["content"]) 
+        line_count = content.count("\n")
     
-        Return highlighted file content and line count of content.
-        """
-        owner = "mongodb"
-        repo = "mongo"
-        token = self.token
-        url = ("https://api.github.com/repos/" + owner + "/" + repo + 
-               "/contents/" + file_name + "?ref=" + git_hash)
-        headers = {"Authorization": "token " + token}
-        http_client = tornado.httpclient.HTTPClient()
-        request = tornado.httpclient.HTTPRequest(url=url, headers=headers,
-                                                 user_agent="Maria's API Test")
-        try:
-            response = http_client.fetch(request)
-            response_dict = json.loads(response.body)
-            content = base64.b64decode(response_dict["content"]) 
-            line_count = content.count("\n")
+    except tornado.httpclient.HTTPError:
+        content = "None"
+        line_count = 0
     
-        except tornado.httpclient.HTTPError:
-            content = "None"
-            line_count = 0
-        
-        http_client.close()
-        return content, line_count
+    http_client.close()
+    return content, line_count
 
-    def add_syntax_highlighting(self, content, identifier=""):
-        """Add syntax highlighting to content, using identifier."""
-        file_content = highlight(content, CppLexer(), CoverageFormatter(identifier))
 
-        return file_content
+def add_syntax_highlighting(content, identifier=""):
+    """Add syntax highlighting to content, using identifier."""
+    file_content = highlight(content, CppLexer(), CoverageFormatter(identifier))
+
+    return file_content
 
     
 class MainHandler(tornado.web.RequestHandler):
@@ -217,7 +213,7 @@ class DataHandler(tornado.web.RequestHandler):
         git_hash = urllib.unquote(args.get("git_hash")[0])
         build_id = urllib.unquote(args.get("build_id")[0])
         # Get meta document 
-        doc = yield self.application.get_meta_doc(build_id, git_hash=git_hash)
+        doc = yield get_meta_doc(self.application.meta_collection, build_id, git_hash=git_hash)
 
         if not doc:
             self.render("templates/error.html", additional_info={"errorSources": ["Build ID", "Git hash"]})
@@ -317,16 +313,16 @@ class DataHandler(tornado.web.RequestHandler):
             else: 
                 # Request file from github
                 file_name = urllib.unquote(args["file"][0])
-                (content, line_count) = self.application.get_ghub_file(git_hash, file_name)
+                (content, line_count) = get_ghub_file(self.application.token, git_hash, file_name)
 
                 if content == "None":
                     self.render("templates/error.html", additional_info={"errorSources": ["Build ID", "Git hash", "File name"]})
                     return
                 
                 # Add syntax highlighting
-                file_content = self.application.add_syntax_highlighting(content)
+                file_content = add_syntax_highlighting(content)
                 # Get meta document 
-                doc = yield self.application.get_meta_doc(build_id, git_hash=git_hash)
+                doc = yield get_meta_doc(self.application.meta_collection, build_id, git_hash=git_hash)
 
                 if not doc:
                     self.render("templates/error.html", additional_info={"errorSources": ["Build ID", "Git hash"]})
@@ -548,7 +544,7 @@ class ReportHandler(tornado.web.RequestHandler):
             clip=len("src/mongo/")
 
             # Get meta document 
-            doc = yield self.application.get_meta_doc(build_id, git_hash=git_hash)
+            doc = yield get_meta_doc(self.application.meta_collection, build_id, git_hash=git_hash)
     
             if not doc:
                 self.render("templates/error.html", additional_info={"errorSources": ["Build ID", "Git hash"]})
@@ -640,13 +636,13 @@ class CompareHandler(tornado.web.RequestHandler):
                 build_id2 = args["build_id2"][0]
 
                 # Retrieve git hashes
-                doc = yield self.application.get_meta_doc(build_id1)
+                doc = yield get_meta_doc(self.application.meta_collection, build_id1)
                 if not doc:
                     self.render("templates/error.html", additional_info={"errorSources": ["Build ID 1", "Build ID 2"]})
                     return
                 git_hash1 = doc["_id"]["git_hash"]
 
-                doc = yield self.application.get_meta_doc(build_id2)
+                doc = yield get_meta_doc(self.application.meta_collection, build_id2)
                 if not doc:
                     self.render("templates/error.html", additional_info={"errorSources": ["Build ID 2"]})
                     return
@@ -655,11 +651,11 @@ class CompareHandler(tornado.web.RequestHandler):
                 file_name = urllib.unquote(args.get("file")[0])
 
                 # Request GitHub files
-                content1, line_count1 = self.application.get_ghub_file(git_hash1, file_name)
-                content2, line_count2 = self.application.get_ghub_file(git_hash2, file_name)
+                content1, line_count1 = get_ghub_file(self.application.token, git_hash1, file_name)
+                content2, line_count2 = get_ghub_file(self.application.token, git_hash2, file_name)
                 # Add syntax highlighting
-                file_content1 = self.application.add_syntax_highlighting(content1, identifier="A")
-                file_content2 = self.application.add_syntax_highlighting(content2, identifier="B")
+                file_content1 = add_syntax_highlighting(content1, identifier="A")
+                file_content2 = add_syntax_highlighting(content2, identifier="B")
 
                 self.render("templates/fileCompare.html", build_id1=build_id1, build_id2=build_id2, file_content1=file_content1, file_content2=file_content2, file_name=file_name, git_hash1=git_hash1, git_hash2=git_hash2, line_count1=line_count1, line_count2=line_count2)
            
@@ -681,7 +677,7 @@ class CompareHandler(tornado.web.RequestHandler):
     @gen.coroutine            
     def get_comparison_data(self, results, build_ids, directory=None):           
         """Get coverage comparison data for build_ids."""
-        for i in range(len(build_ids)):
+        for i in xrange(len(build_ids)):
 
             if directory: 
                 # Fill pipeline with build/directory info
@@ -786,5 +782,5 @@ class StyleHandler(tornado.web.RequestHandler):
 
 if __name__ == "__main__":
     application = Application()
-    application.listen(application.httpport)
+    application.listen(application.http_port)
     tornado.ioloop.IOLoop.instance().start()
