@@ -95,8 +95,8 @@ class Application(tornado.web.Application):
         doc = yield self.metaCollection.find_one(query)
         raise gen.Return(doc)
 
-    def requestGitHubFile(self, git_hash, fileName):
-        """Retrieve file from GitHub with git_hash and fileName.
+    def requestGitHubFile(self, git_hash, file_name):
+        """Retrieve file from GitHub with git_hash and file_name.
     
         Return highlighted file content and line count of content.
         """
@@ -104,7 +104,7 @@ class Application(tornado.web.Application):
         repo = "mongo"
         token = self.token
         url = ("https://api.github.com/repos/" + owner + "/" + repo + 
-               "/contents/" + fileName + "?ref=" + git_hash)
+               "/contents/" + file_name + "?ref=" + git_hash)
         headers = {"Authorization": "token " + token}
         http_client = tornado.httpclient.HTTPClient()
         request = tornado.httpclient.HTTPRequest(url=url, headers=headers,
@@ -270,9 +270,9 @@ class DataHandler(tornado.web.RequestHandler):
                 return
             
             # Generate line coverage results
-            fileName = urllib.unquote(args.get("file")[0])
+            file_name = urllib.unquote(args.get("file")[0])
 
-            additionalInfo["fileName"] = fileName
+            additionalInfo["file_name"] = file_name
             
             if "testName" in args:
                 testName = urllib.unquote(args.get("testName")[0])
@@ -284,13 +284,13 @@ class DataHandler(tornado.web.RequestHandler):
                 if "testName" in args:
                     file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
                     match = {"$match": {"build_id": build_id, "git_hash": git_hash, 
-                                        "testName": testName, "file": fileName}}
+                                        "testName": testName, "file": file_name}}
                     file_line_pipeline.insert(0, match)
        
                 else:
-                    # Fill pipeline with git_hash, build_id, and fileName info
+                    # Fill pipeline with git_hash, build_id, and file_name info
                     file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
-                    match = {"$match": {"build_id": build_id, "git_hash": git_hash, "file": fileName}}
+                    match = {"$match": {"build_id": build_id, "git_hash": git_hash, "file": file_name}}
                     file_line_pipeline.insert(0, match)
     
                 cursor =  yield self.application.collection.aggregate(file_line_pipeline, cursor={})
@@ -315,8 +315,8 @@ class DataHandler(tornado.web.RequestHandler):
             # Otherwise, obtain file content from github
             else: 
                 # Request file from github
-                fileName = urllib.unquote(args["file"][0])
-                (content, lineCount) = self.application.requestGitHubFile(git_hash, fileName)
+                file_name = urllib.unquote(args["file"][0])
+                (content, lineCount) = self.application.requestGitHubFile(git_hash, file_name)
 
                 if content == "None":
                     self.render("templates/error.html", additionalInfo={"errorSources": ["Build ID", "Git hash", "File name"]})
@@ -651,16 +651,16 @@ class CompareHandler(tornado.web.RequestHandler):
                     return
                 git_hash2 = doc["_id"]["git_hash"]
 
-                fileName = urllib.unquote(args.get("file")[0])
+                file_name = urllib.unquote(args.get("file")[0])
 
                 # Request GitHub files
-                content1, lineCount1 = self.application.requestGitHubFile(git_hash1, fileName)
-                content2, lineCount2 = self.application.requestGitHubFile(git_hash2, fileName)
+                content1, lineCount1 = self.application.requestGitHubFile(git_hash1, file_name)
+                content2, lineCount2 = self.application.requestGitHubFile(git_hash2, file_name)
                 # Add syntax highlighting
                 fileContent1 = self.application.add_syntax_highlighting(content1, identifier="A")
                 fileContent2 = self.application.add_syntax_highlighting(content2, identifier="B")
 
-                self.render("templates/fileCompare.html", build_id1=build_id1, build_id2=build_id2, fileContent1=fileContent1, fileContent2=fileContent2, fileName=fileName, git_hash1=git_hash1, git_hash2=git_hash2, lineCount1=lineCount1, lineCount2=lineCount2)
+                self.render("templates/fileCompare.html", build_id1=build_id1, build_id2=build_id2, fileContent1=fileContent1, fileContent2=fileContent2, file_name=file_name, git_hash1=git_hash1, git_hash2=git_hash2, lineCount1=lineCount1, lineCount2=lineCount2)
            
             # Build comparison
             else:

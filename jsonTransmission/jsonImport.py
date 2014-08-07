@@ -119,16 +119,16 @@ def doJSONImport():
  
     if options.recurse:
         # Walk through files in root
-        for dirPath, subDirs, fileNames in os.walk(options.root):
-            for fileName in fileNames:
+        for dirPath, subDirs, file_names in os.walk(options.root):
+            for file_name in file_names:
                 # TODO: Add option to specify pattern
-                if not fileName.endswith(".json"):
+                if not file_name.endswith(".json"):
                     continue
             
-                print "\nNow importing " + fileName + ":\n"
+                print "\nNow importing " + file_name + ":\n"
 
                 # Insert the record for a file
-                doImportFile(os.path.join(dirPath, fileName), options.ghash, options.build, options.tname, http_client, options.connectstr)
+                doImportFile(os.path.join(dirPath, file_name), options.ghash, options.build, options.tname, http_client, options.connectstr)
     
     else:
         # Import all json files in current directory
@@ -160,9 +160,9 @@ def doJSONImport():
     http_client.close()
 
 
-def doImportFile(fileName, git_hash, build_id, testName, http_client, url):
+def doImportFile(file_name, git_hash, build_id, testName, http_client, url):
     """Import contents of a single file into database."""
-    for line in open(fileName, "r"):
+    for line in open(file_name, "r"):
         if line == "\n":
             continue
         record = json.loads(line)

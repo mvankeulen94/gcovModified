@@ -1,6 +1,6 @@
 {% extends "fileLayout.html" %}
 {% block header %}
-        <title> Coverage Data for {{ additionalInfo['fileName'] }} </title>
+        <title> Coverage Data for {{ additionalInfo['file_name'] }} </title>
         <link rel="stylesheet" type="text/css" href="/style">
 {% end %}
 {% block body %}
@@ -11,7 +11,7 @@
     <script>
         var xmlHttp = null;
         xmlHttp = new XMLHttpRequest();
-        xmlHttp.open("GET", "/data?build_id={{ additionalInfo['build_id'] }}&git_hash={{ additionalInfo['git_hash'] }}&file={{ additionalInfo['fileName'] }}&counts=true{% if 'testName' in additionalInfo %}&testName={{ additionalInfo['testName'] }}{% end %}", false);
+        xmlHttp.open("GET", "/data?build_id={{ additionalInfo['build_id'] }}&git_hash={{ additionalInfo['git_hash'] }}&file={{ additionalInfo['file_name'] }}&counts=true{% if 'testName' in additionalInfo %}&testName={{ additionalInfo['testName'] }}{% end %}", false);
         xmlHttp.send(null);
         result = JSON.parse(xmlHttp.responseText);
         var coveredLines = [];

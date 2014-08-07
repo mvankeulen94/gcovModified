@@ -1,6 +1,6 @@
 {% extends "fileCompareLayout.html" %}
 {% block header %}
-        <title> Coverage Comparison for {{ fileName }} </title>
+        <title> Coverage Comparison for {{ file_name }} </title>
         <link rel="stylesheet" type="text/css" href="/style">
 {% end %}
 {% block body %}
@@ -20,11 +20,11 @@
          xmlHttp = new XMLHttpRequest();
          if (identifier == "A")
          {
-             xmlHttp.open("GET", "/data?build_id={{ build_id1 }}&git_hash={{ git_hash1 }}&file={{ fileName }}&counts=true", false);
+             xmlHttp.open("GET", "/data?build_id={{ build_id1 }}&git_hash={{ git_hash1 }}&file={{ file_name }}&counts=true", false);
          }
          else 
          {
-             xmlHttp.open("GET", "/data?build_id={{ build_id2 }}&git_hash={{ git_hash2 }}&file={{ fileName }}&counts=true", false);
+             xmlHttp.open("GET", "/data?build_id={{ build_id2 }}&git_hash={{ git_hash2 }}&file={{ file_name }}&counts=true", false);
          }
  
          xmlHttp.send(null);
