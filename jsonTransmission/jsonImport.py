@@ -28,10 +28,11 @@ import string
 import os
 import sys
 import optparse
-import pymongo
 import json
-import tornado.httpclient
 import datetime 
+
+import pymongo
+import tornado.httpclient
 
 def do_json_import():
     """Insert all JSON files from root directory and below into database."""
@@ -42,18 +43,18 @@ def do_json_import():
                                    [testname] [branch] [platform]""")
 
     # add in command line options. Add mongo host/port combo later
-    parser.add_option("-g", "--githash", dest="ghash",
+    parser.add_option("-g", "--git-hash", dest="ghash",
                       help="git hash of code being tested",
                       default=None)
-    parser.add_option("-b", "--buildid", dest="build", 
+    parser.add_option("-b", "--build-id", dest="build", 
                       help="build ID of code being tested",
                       default=None)
 
-    parser.add_option("-c", "--connectionstring", dest="connectstr",
-                      help="string specifying url",
+    parser.add_option("-c", "--connection-string", dest="connectstr",
+                      help="URL that will be connected to",
                       default=None)
 
-    parser.add_option("-t", "--testname", dest="tname",
+    parser.add_option("-t", "--test-name", dest="tname",
                       help="name of the test",
                       default=None)
 
@@ -65,7 +66,7 @@ def do_json_import():
                       help="build platform",
                       default=None)
 
-    parser.add_option("-r", "--rootdir", dest="root",
+    parser.add_option("-r", "--root-dir", dest="root",
                       help="root directory of JSON files",
                       default=None)
 
@@ -128,16 +129,20 @@ def do_json_import():
                 print "\nNow importing " + file_name + ":\n"
 
                 # Insert the record for a file
-                do_import_file(os.path.join(dir_path, file_name), options.ghash, options.build, options.tname, http_client, options.connectstr)
+                do_import_file(os.path.join(dir_path, file_name), options.ghash, 
+                               options.build, options.tname, http_client, 
+                               options.connectstr)
     
     else:
-        # Import all json files in current directory
-        files = [os.path.join(options.root, f) for f in os.listdir(options.root) if os.path.isfile(os.path.join(options.root, f))]
+        # Import all json files in root directory
+        files = [os.path.join(options.root, f) 
+                 for f in os.listdir(options.root) if os.path.isfile(os.path.join(options.root, f))]
         for f in files:
             # TODO: Add option to specify pattern
             if not f.endswith(".json"):
                 continue
-            do_import_file(f, options.ghash, options.build, options.tname, http_client, options.connectstr)
+            do_import_file(f, options.ghash, options.build, options.tname, 
+                           http_client, options.connectstr)
 
     # Gather meta info
     meta_record = {}
@@ -162,28 +167,29 @@ def do_json_import():
 
 def do_import_file(file_name, git_hash, build_id, test_name, http_client, url):
     """Import contents of a single file into database."""
-    for line in open(file_name, "r"):
-        if line == "\n":
-            continue
-        record = json.loads(line)
-        record["git_hash"] = git_hash 
-        record["build_id"] = build_id 
-        record["test_name"] = test_name 
-    
-        file_index = record["file"].rfind("/") + 1
-        record["dir"] = record["file"][: file_index]
-    
-        request = tornado.httpclient.HTTPRequest(
-                                             url=url,
-                                             method="POST", 
-                                             headers={"Content-Type": "application/json"},
-                                             request_timeout=300.0,
-                                             body=json.dumps(record))
-        try:
-            response = http_client.fetch(request)
-            print response.body
-        except tornado.httpclient.HTTPError as e:
-            print "Error: ", e
+    with open(file_name, "r") as f:
+        for line in f:
+            if line == "\n":
+                continue
+            record = json.loads(line)
+            record["git_hash"] = git_hash 
+            record["build_id"] = build_id 
+            record["test_name"] = test_name 
+        
+            file_index = record["file"].rfind("/") + 1
+            record["dir"] = record["file"][: file_index]
+        
+            request = tornado.httpclient.HTTPRequest(
+                                                 url=url,
+                                                 method="POST", 
+                                                 headers={"Content-Type": "application/json"},
+                                                 request_timeout=300.0,
+                                                 body=json.dumps(record))
+            try:
+                response = http_client.fetch(request)
+                print response.body
+            except tornado.httpclient.HTTPError as e:
+                print "Error: ", e
 
 
 do_json_import()
