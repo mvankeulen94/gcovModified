@@ -24,10 +24,10 @@
        <td>Branch</td>
        <td>{{ additionalInfo['branch'] }}</td>
       </tr>
-      {% if 'testName' in additionalInfo %}
+      {% if 'test_name' in additionalInfo %}
       <tr>
        <td>Test name</td>
-       <td>{{ additionalInfo['testName'] }}</td>
+       <td>{{ additionalInfo['test_name'] }}</td>
       </tr>
       {% end %}
      </tbody>
@@ -47,10 +47,10 @@
        <tbody>
        <tr>
         <td>
-         <select class="form-control" name="testName">
+         <select class="form-control" name="test_name">
          <option value="All tests">All tests</option>
-         {% for testName in sorted(additionalInfo['testNames']) %}
-          <option value="{{ testName }}">{{ testName }}
+         {% for test_name in sorted(additionalInfo['test_names']) %}
+          <option value="{{ test_name }}">{{ test_name }}
           </option>
          {% end %}
          </select>
@@ -81,7 +81,7 @@
      <tbody>
       {% for key in sorted(dirResults.keys()) %}
       <tr>
-       <td><a href="/data?build_id={{ url_escape(additionalInfo['build_id']) }}&git_hash={{ url_escape(additionalInfo['git_hash']) }}&dir={{ url_escape(key) }}{% if 'testName' in additionalInfo %}&testName={{ url_escape(additionalInfo['testName'])}}{% end %}">{{ key[additionalInfo['clip']:] }}</a></td>
+       <td><a href="/data?build_id={{ url_escape(additionalInfo['build_id']) }}&git_hash={{ url_escape(additionalInfo['git_hash']) }}&dir={{ url_escape(key) }}{% if 'test_name' in additionalInfo %}&test_name={{ url_escape(additionalInfo['test_name'])}}{% end %}">{{ key[additionalInfo['clip']:] }}</a></td>
        {% if 'lineCount' in dirResults[key] %}
        <td>{{ dirResults[key]['lineCovCount'] }}/{{ dirResults[key]['lineCount'] }}</td>
        <td>{{ dirResults[key]['lineCovPercentage'] }}</td>

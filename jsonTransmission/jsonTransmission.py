@@ -147,7 +147,7 @@ class MainHandler(tornado.web.RequestHandler):
 
 class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
-    def getDirectoryResults(self, results, specifier, git_hash, build_id, directory, testName=None):
+    def getDirectoryResults(self, results, specifier, git_hash, build_id, directory, test_name=None):
         """Retrieve coverage data for directories.
 
         results - dictionary in which results are stored
@@ -155,12 +155,12 @@ class DataHandler(tornado.web.RequestHandler):
         git_hash - git hash for which to obtain data
         build_id - build for which to obtain data
         directory - directory for which to obtain data
-        testName (optional) - test name for which to obtain data
+        test_name (optional) - test name for which to obtain data
         """
         match = {"$match": {"build_id": build_id, "git_hash": git_hash}}
 
-        if testName:
-            match["$match"]["testName"] = testName 
+        if test_name:
+            match["$match"]["test_name"] = test_name 
 
         match["$match"]["file"] = re.compile("^" + directory)
 
@@ -230,7 +230,7 @@ class DataHandler(tornado.web.RequestHandler):
                           "build_id": build_id, 
                           "branch": branch}
 
-        if "dir" in args or "testName" in args and "dir" in args:
+        if "dir" in args or "test_name" in args and "dir" in args:
 
             directory = urllib.unquote(args.get("dir")[0])
             additionalInfo["directory"] = directory
@@ -239,11 +239,11 @@ class DataHandler(tornado.web.RequestHandler):
             # Get line results
             results = {} # Store coverage data
 
-            if "testName" in args:
-                testName = urllib.unquote(args.get("testName")[0])
-                yield self.getDirectoryResults(results, "line", git_hash, build_id, directory, testName=testName)
-                yield self.getDirectoryResults(results, "func", git_hash, build_id, directory, testName=testName)
-                additionalInfo["testName"] = testName
+            if "test_name" in args:
+                test_name = urllib.unquote(args.get("test_name")[0])
+                yield self.getDirectoryResults(results, "line", git_hash, build_id, directory, test_name=test_name)
+                yield self.getDirectoryResults(results, "func", git_hash, build_id, directory, test_name=test_name)
+                additionalInfo["test_name"] = test_name
            
             else:
                 yield self.getDirectoryResults(results, "line", git_hash, build_id, directory)
@@ -274,17 +274,17 @@ class DataHandler(tornado.web.RequestHandler):
 
             additionalInfo["file_name"] = file_name
             
-            if "testName" in args:
-                testName = urllib.unquote(args.get("testName")[0])
-                additionalInfo["testName"] = testName
+            if "test_name" in args:
+                test_name = urllib.unquote(args.get("test_name")[0])
+                additionalInfo["test_name"] = test_name
             
             # If coverage data is needed, do aggregation
             if "counts" in args and args["counts"][0] == "true":
                 # Send only counts data to client
-                if "testName" in args:
+                if "test_name" in args:
                     file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
                     match = {"$match": {"build_id": build_id, "git_hash": git_hash, 
-                                        "testName": testName, "file": file_name}}
+                                        "test_name": test_name, "file": file_name}}
                     file_line_pipeline.insert(0, match)
        
                 else:
@@ -398,7 +398,7 @@ class CacheHandler(tornado.web.RequestHandler):
         cursor =  yield self.application.collection.aggregate(testname_pipeline, cursor={})
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
-            json_args["testNames"] = bsonobj["testNames"]
+            json_args["test_names"] = bsonobj["test_names"]
         
         json_args["date"] = datetime.datetime.strptime(json_args["date"], "%Y-%m-%dT%H:%M:%S.%f")
 
@@ -449,20 +449,20 @@ class CacheHandler(tornado.web.RequestHandler):
 class ReportHandler(tornado.web.RequestHandler):
 
     @gen.coroutine
-    def getBuildGitHashResults(self, results, specifier, git_hash, build_id, testName=None):
+    def getBuildGitHashResults(self, results, specifier, git_hash, build_id, test_name=None):
         """Retreieve coverage data for directories.
 
         results - dictionary in which results are stored
         specifier - e.g. "line" or "func"
         git_hash - git hash for which to obtain data
         build_id - build for which to obtain data
-        testName (optional) - test name for which to obtain data
+        test_name (optional) - test name for which to obtain data
         """
         match = {"$match": {"build_id": build_id, "git_hash": git_hash,
                             "file": re.compile("^src\/mongo")}}
 
-        if testName:
-            match["$match"]["testName"] = testName 
+        if test_name:
+            match["$match"]["test_name"] = test_name 
             action = "aggregate"
         else:
             action = "query"
@@ -557,16 +557,16 @@ class ReportHandler(tornado.web.RequestHandler):
             branch = doc["branch"]
 
             # Get test names
-            testNames = doc["testNames"]
+            test_names = doc["test_names"]
             additionalInfo = {"git_hash": git_hash, "build_id": build_id,
-                              "branch": branch, "testNames": testNames, 
+                              "branch": branch, "test_names": test_names, 
                               "clip": clip}
             
-            if "testName" in args and urllib.unquote(args["testName"][0]) != "All tests":
-                testName = urllib.unquote(args.get("testName")[0])
-                additionalInfo["testName"] = testName
-                yield self.getBuildGitHashResults(results, "line", git_hash, build_id, testName=testName)
-                yield self.getBuildGitHashResults(results, "func", git_hash, build_id, testName=testName)
+            if "test_name" in args and urllib.unquote(args["test_name"][0]) != "All tests":
+                test_name = urllib.unquote(args.get("test_name")[0])
+                additionalInfo["test_name"] = test_name
+                yield self.getBuildGitHashResults(results, "line", git_hash, build_id, test_name=test_name)
+                yield self.getBuildGitHashResults(results, "func", git_hash, build_id, test_name=test_name)
 
             else:
                 yield self.getBuildGitHashResults(results, "line", git_hash, build_id)

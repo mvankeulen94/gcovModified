@@ -257,7 +257,7 @@ testname_pipeline = [
 		"$project" : {
 			"build_id" : 1,
 			"git_hash" : 1,
-			"testName" : 1
+			"test_name" : 1
 		}
 	},
 	{
@@ -266,8 +266,8 @@ testname_pipeline = [
 				"git_hash" : "$git_hash",
 				"build_id" : "$build_id"
 			},
-			"testNames" : {
-				"$addToSet" : "$testName"
+			"test_names" : {
+				"$addToSet" : "$test_name"
 			}
 		}
 	}

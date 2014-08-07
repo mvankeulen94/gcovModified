@@ -160,7 +160,7 @@ def doJSONImport():
     http_client.close()
 
 
-def doImportFile(file_name, git_hash, build_id, testName, http_client, url):
+def doImportFile(file_name, git_hash, build_id, test_name, http_client, url):
     """Import contents of a single file into database."""
     for line in open(file_name, "r"):
         if line == "\n":
@@ -168,7 +168,7 @@ def doImportFile(file_name, git_hash, build_id, testName, http_client, url):
         record = json.loads(line)
         record["git_hash"] = git_hash 
         record["build_id"] = build_id 
-        record["testName"] = testName 
+        record["test_name"] = test_name 
     
         fileIndex = record["file"].rfind("/") + 1
         record["dir"] = record["file"][: fileIndex]
