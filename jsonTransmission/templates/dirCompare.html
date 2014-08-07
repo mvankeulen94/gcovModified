@@ -36,13 +36,13 @@
        <tr>
        {% end %}
        <td><a href="/compare?build_id1={{ url_escape(build_id1) }}&build_id2={{ url_escape(build_id2) }}&file={{url_escape(key)}}">{{ key }}</a></td>
-        <td>{{ results[key]["lineCount1"] }}</td>
-        <td>{{ results[key]["lineCovCount1"] }}</td>
-        <td>{{ results[key]["lineCovPercentage1"] }}</td>
-        <td>{{ results[key]["lineCount2"] }}</td>
-        <td>{{ results[key]["lineCovCount2"] }}</td>
-        <td>{{ results[key]["lineCovPercentage2"] }}</td>
-        <td>{{ results[key]["coverageComparison"] }}</td>
+        <td>{{ results[key]["line_count1"] }}</td>
+        <td>{{ results[key]["line_cov_count1"] }}</td>
+        <td>{{ results[key]["line_cov_percentage1"] }}</td>
+        <td>{{ results[key]["line_count2"] }}</td>
+        <td>{{ results[key]["line_cov_count2"] }}</td>
+        <td>{{ results[key]["line_cov_percentage2"] }}</td>
+        <td>{{ results[key]["coverage_comparison"] }}</td>
        </tr>
       {% end %}
      </tbody>

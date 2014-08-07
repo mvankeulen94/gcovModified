@@ -86,10 +86,10 @@ function_pipeline = [
 				"git_hash" : "$_id.git_hash",
 				"build_id" : "$_id.build_id"
 			},
-			"funcCount" : {
+			"func_count" : {
 				"$sum" : 1
 			},
-			"funcCovCount" : {
+			"func_cov_count" : {
 				"$sum" : "$hit"
 			}
 		}
@@ -155,10 +155,10 @@ line_pipeline = [
 				"git_hash" : "$_id.git_hash",
 				"build_id" : "$_id.build_id"
 			},
-			"lineCount" : {
+			"line_count" : {
 				"$sum" : 1
 			},
-			"lineCovCount" : {
+			"line_cov_count" : {
 				"$sum" : "$hit"
 			}
 		}

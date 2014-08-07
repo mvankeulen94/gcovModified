@@ -49,16 +49,16 @@
       {% for key in sorted(results.keys()) %}
       <tr>
           <td><a href="/data?build_id={{ url_escape(additional_info['build_id']) }}&git_hash={{ url_escape(additional_info['git_hash']) }}&file={{ url_escape(key) }}{% if 'test_name' in additional_info %}&test_name={{ url_escape(additional_info['test_name'])}}{% end %}">{{ key[additional_info['clip']:] }}</a></td>
-       {% if 'lineCount' in results[key] %}
-       <td>{{ results[key]['lineCovCount'] }}/{{ results[key]['lineCount'] }}</td>
-       <td>{{ results[key]['lineCovPercentage'] }}</td>
+       {% if 'line_count' in results[key] %}
+       <td>{{ results[key]['line_cov_count'] }}/{{ results[key]['line_count'] }}</td>
+       <td>{{ results[key]['line_cov_percentage'] }}</td>
        {% else %}
        <td>0 / 0</td>
        <td>0.0</td>
        {% end %}
-       {% if 'funcCount' in results[key] %}
-       <td>{{ results[key]['funcCovCount'] }}/{{ results[key]['funcCount'] }}</td>
-       <td>{{ results[key]['funcCovPercentage'] }}</td>
+       {% if 'func_count' in results[key] %}
+       <td>{{ results[key]['func_cov_count'] }}/{{ results[key]['func_count'] }}</td>
+       <td>{{ results[key]['func_cov_percentage'] }}</td>
        {% else %}
        <td>0 / 0</td>
        <td>0.0</td>

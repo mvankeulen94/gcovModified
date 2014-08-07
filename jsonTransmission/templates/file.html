@@ -5,7 +5,7 @@
 {% end %}
 {% block body %}
     {% autoescape None %}
-    {{ additional_info['fileContent'] }}
+    {{ additional_info['file_content'] }}
 {% end %}
 {% block footer %}
     <script>
@@ -35,7 +35,7 @@
         }
         var countsString = "";
         
-        for (i = 1, len = {{ additional_info['lineCount'] }}; i <= len; i++) {
+        for (i = 1, len = {{ additional_info['line_count'] }}; i <= len; i++) {
             if (i.toString() in result["counts"]) {
                 countsString += result["counts"][i.toString()];
                 countsString += "\n";

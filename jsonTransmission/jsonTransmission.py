@@ -84,7 +84,7 @@ class Application(tornado.web.Application):
 
     # TODO: move to outside Application class
     @gen.coroutine
-    def getMetaDocument(self, build_id, git_hash=None):
+    def get_meta_doc(self, build_id, git_hash=None):
         """Retrieve meta document for build_id (and git hash)."""
         query = {"_id.build_id": build_id}
         
@@ -95,7 +95,7 @@ class Application(tornado.web.Application):
         doc = yield self.meta_collection.find_one(query)
         raise gen.Return(doc)
 
-    def requestGitHubFile(self, git_hash, file_name):
+    def get_ghub_file(self, git_hash, file_name):
         """Retrieve file from GitHub with git_hash and file_name.
     
         Return highlighted file content and line count of content.
@@ -111,21 +111,22 @@ class Application(tornado.web.Application):
                                                  user_agent="Maria's API Test")
         try:
             response = http_client.fetch(request)
-            responseDict = json.loads(response.body)
-            content = base64.b64decode(responseDict["content"])
-            lineCount = content.count("\n")
+            response_dict = json.loads(response.body)
+            content = base64.b64decode(response_dict["content"]) 
+            line_count = content.count("\n")
     
         except tornado.httpclient.HTTPError:
             content = "None"
-            lineCount = 0
+            line_count = 0
         
         http_client.close()
-        return content, lineCount
+        return content, line_count
 
     def add_syntax_highlighting(self, content, identifier=""):
         """Add syntax highlighting to content, using identifier."""
-        fileContent = highlight(content, CppLexer(), CoverageFormatter(identifier))
-        return fileContent
+        file_content = highlight(content, CppLexer(), CoverageFormatter(identifier))
+
+        return file_content
 
     
 class MainHandler(tornado.web.RequestHandler):
@@ -147,7 +148,7 @@ class MainHandler(tornado.web.RequestHandler):
 
 class DataHandler(tornado.web.RequestHandler):
     @gen.coroutine
-    def getDirectoryResults(self, results, specifier, git_hash, build_id, directory, test_name=None):
+    def get_dir_results(self, results, specifier, git_hash, build_id, directory, test_name=None):
         """Retrieve coverage data for directories.
 
         results - dictionary in which results are stored
@@ -166,13 +167,13 @@ class DataHandler(tornado.web.RequestHandler):
 
         if specifier == "line":
             pipeline = copy.copy(pipelines.file_line_pipeline)
-            count_key = "lineCount"
-            cov_count_key = "lineCovCount"
+            count_key = "line_count"
+            cov_count_key = "line_cov_count"
 
         else:
             pipeline = copy.copy(pipelines.file_func_pipeline)
-            count_key = "funcCount"
-            cov_count_key = "funcCovCount"
+            count_key = "func_count"
+            cov_count_key = "func_cov_count"
 
         pipeline.insert(0, match)
 
@@ -180,26 +181,26 @@ class DataHandler(tornado.web.RequestHandler):
         cursor = yield self.application.collection.aggregate(pipeline, cursor={})
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
-            amountAdded = 0
+            amount_added = 0
             if bsonobj["count"] != 0:
-                amountAdded = 1
+                amount_added = 1
 
             # Check if there exists an entry for this file
             key = bsonobj["_id"]["file"]
             if key in results:
 
                 if count_key in results[key]:
-                    results[key][cov_count_key]+= amountAdded
+                    results[key][cov_count_key]+= amount_added
                     results[key][count_key] += 1
 
                 else:
-                    results[key][cov_count_key] = amountAdded
+                    results[key][cov_count_key] = amount_added
                     results[key][count_key] = 1
 
             # Otherwise, create a new entry
             else:
                 results[key] = {}
-                results[key][cov_count_key] = amountAdded
+                results[key][cov_count_key] = amount_added
                 results[key][count_key] = 1
 
     @tornado.web.asynchronous
@@ -216,7 +217,7 @@ class DataHandler(tornado.web.RequestHandler):
         git_hash = urllib.unquote(args.get("git_hash")[0])
         build_id = urllib.unquote(args.get("build_id")[0])
         # Get meta document 
-        doc = yield self.application.getMetaDocument(build_id, git_hash=git_hash)
+        doc = yield self.application.get_meta_doc(build_id, git_hash=git_hash)
 
         if not doc:
             self.render("templates/error.html", additional_info={"errorSources": ["Build ID", "Git hash"]})
@@ -241,13 +242,13 @@ class DataHandler(tornado.web.RequestHandler):
 
             if "test_name" in args:
                 test_name = urllib.unquote(args.get("test_name")[0])
-                yield self.getDirectoryResults(results, "line", git_hash, build_id, directory, test_name=test_name)
-                yield self.getDirectoryResults(results, "func", git_hash, build_id, directory, test_name=test_name)
+                yield self.get_dir_results(results, "line", git_hash, build_id, directory, test_name=test_name)
+                yield self.get_dir_results(results, "func", git_hash, build_id, directory, test_name=test_name)
                 additional_info["test_name"] = test_name
            
             else:
-                yield self.getDirectoryResults(results, "line", git_hash, build_id, directory)
-                yield self.getDirectoryResults(results, "func", git_hash, build_id, directory)
+                yield self.get_dir_results(results, "line", git_hash, build_id, directory)
+                yield self.get_dir_results(results, "func", git_hash, build_id, directory)
 
             if not results:
                 self.render("templates/error.html", 
@@ -257,10 +258,10 @@ class DataHandler(tornado.web.RequestHandler):
 
             # Add line and function coverage percentage data
             for key in results.keys():
-                if "lineCount" in results[key]:
-                    results[key]["lineCovPercentage"] = round(float(results[key]["lineCovCount"])/results[key]["lineCount"] * 100, 2)
-                if "funcCount" in results[key]:
-                    results[key]["funcCovPercentage"] = round(float(results[key]["funcCovCount"])/results[key]["funcCount"] * 100, 2)
+                if "line_count" in results[key]:
+                    results[key]["line_cov_percentage"] = round(float(results[key]["line_cov_count"])/results[key]["line_count"] * 100, 2)
+                if "func_count" in results[key]:
+                    results[key]["func_cov_percentage"] = round(float(results[key]["func_cov_count"])/results[key]["func_count"] * 100, 2)
 
             self.render("templates/data.html", results=results, additional_info=additional_info)
 
@@ -316,16 +317,16 @@ class DataHandler(tornado.web.RequestHandler):
             else: 
                 # Request file from github
                 file_name = urllib.unquote(args["file"][0])
-                (content, lineCount) = self.application.requestGitHubFile(git_hash, file_name)
+                (content, line_count) = self.application.get_ghub_file(git_hash, file_name)
 
                 if content == "None":
                     self.render("templates/error.html", additional_info={"errorSources": ["Build ID", "Git hash", "File name"]})
                     return
                 
                 # Add syntax highlighting
-                fileContent = self.application.add_syntax_highlighting(content)
+                file_content = self.application.add_syntax_highlighting(content)
                 # Get meta document 
-                doc = yield self.application.getMetaDocument(build_id, git_hash=git_hash)
+                doc = yield self.application.get_meta_doc(build_id, git_hash=git_hash)
 
                 if not doc:
                     self.render("templates/error.html", additional_info={"errorSources": ["Build ID", "Git hash"]})
@@ -335,8 +336,8 @@ class DataHandler(tornado.web.RequestHandler):
                 branch = doc["branch"]
                 additional_info["branch"] = branch
 
-                additional_info["fileContent"] = fileContent
-                additional_info["lineCount"] = lineCount
+                additional_info["file_content"] = file_content
+                additional_info["line_count"] = line_count
                 self.render("templates/file.html", additional_info=additional_info)
 
 
@@ -363,33 +364,33 @@ class CacheHandler(tornado.web.RequestHandler):
 
         cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
         total = 0
-        noexecTotal = 0
+        noexec_total = 0
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
             obj = bsondumps(bsonobj)
             total += bsonobj["count"] 
-            noexecTotal += bsonobj["noexec"] 
+            noexec_total += bsonobj["noexec"] 
 
-        json_args["lineCount"] = total
-        json_args["lineCovCount"] = total-noexecTotal
-        json_args["lineCovPercentage"] = round(float(total-noexecTotal)/total * 100, 2)
+        json_args["line_count"] = total
+        json_args["line_cov_count"] = total-noexec_total
+        json_args["line_cov_percentage"] = round(float(total-noexec_total)/total * 100, 2)
 
         # Generate function results
         pipeline = [{"$project": {"file":1,"functions":1}}, {"$unwind":"$functions"},
                     {"$group": { "_id":"$functions.nm", 
                                  "count" : { "$sum" : "$functions.ec"}}}] 
         cursor =  yield self.application.collection.aggregate(pipeline, cursor={})
-        noexecTotal = 0
+        noexec_total = 0
         total = 0
         while (yield cursor.fetch_next):
             bsonobj = cursor.next_object()
             total += 1
             if bsonobj["count"] == 0:
-                noexecTotal += 1
+                noexec_total += 1
 
-        json_args["funcCount"] = total
-        json_args["funcCovCount"] = total-noexecTotal
-        json_args["funcCovPercentage"] = round(float(total-noexecTotal)/total * 100, 2)
+        json_args["func_count"] = total
+        json_args["func_cov_count"] = total-noexec_total
+        json_args["func_cov_percentage"] = round(float(total-noexec_total)/total * 100, 2)
 
         # Retrieve test name list
         match = {"$match": {"build_id": build_id, "git_hash": git_hash}}
@@ -424,9 +425,9 @@ class CacheHandler(tornado.web.RequestHandler):
             bsonobj = cursor.next_object()
             
             # Generate line coverage percentage
-            lineCount = bsonobj["lineCount"]
-            lineCovCount = bsonobj["lineCovCount"]
-            bsonobj["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
+            line_count = bsonobj["line_count"]
+            line_cov_count = bsonobj["line_cov_count"]
+            bsonobj["line_cov_percentage"] = round(float(line_cov_count)/line_count * 100, 2)
             query = {"_id.build_id": build_id, "_id.git_hash": git_hash, 
                      "_id.dir": bsonobj["_id"]["dir"]}
             result = yield self.application.cov_collection.update(query, bsonobj, upsert=True)
@@ -436,20 +437,20 @@ class CacheHandler(tornado.web.RequestHandler):
             bsonobj = cursor.next_object()
 
             # Generate function coverage percentage
-            funcCount = bsonobj["funcCount"]
-            funcCovCount = bsonobj["funcCovCount"]
-            funcCovPercentage = round(float(funcCovCount)/funcCount * 100, 2)
+            func_count = bsonobj["func_count"]
+            func_cov_count = bsonobj["func_cov_count"]
+            func_cov_percentage = round(float(func_cov_count)/func_count * 100, 2)
             query = {"_id": bsonobj["_id"]}
-            modification = {"$set": {"funcCount": bsonobj["funcCount"], 
-                                     "funcCovCount": bsonobj["funcCovCount"], 
-                                     "funcCovPercentage": funcCovPercentage}}
+            modification = {"$set": {"func_count": bsonobj["func_count"], 
+                                     "func_cov_count": bsonobj["func_cov_count"], 
+                                     "func_cov_percentage": func_cov_percentage}}
             result = yield self.application.cov_collection.update(query, modification)
 
 
 class ReportHandler(tornado.web.RequestHandler):
 
     @gen.coroutine
-    def getBuildGitHashResults(self, results, specifier, git_hash, build_id, test_name=None):
+    def get_build_ghash_results(self, results, specifier, git_hash, build_id, test_name=None):
         """Retreieve coverage data for directories.
 
         results - dictionary in which results are stored
@@ -485,11 +486,11 @@ class ReportHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["dir"]] = {}
                 
                 # Add line count data
-                lineCount = bsonobj["lineCount"]
-                lineCovCount = bsonobj["lineCovCount"]
-                results[bsonobj["_id"]["dir"]]["lineCount"] = lineCount 
-                results[bsonobj["_id"]["dir"]]["lineCovCount"] = lineCovCount 
-                results[bsonobj["_id"]["dir"]]["lineCovPercentage"] = round(float(lineCovCount)/lineCount * 100, 2)
+                line_count = bsonobj["line_count"]
+                line_cov_count = bsonobj["line_cov_count"]
+                results[bsonobj["_id"]["dir"]]["line_count"] = line_count 
+                results[bsonobj["_id"]["dir"]]["line_cov_count"] = line_cov_count 
+                results[bsonobj["_id"]["dir"]]["line_cov_percentage"] = round(float(line_cov_count)/line_count * 100, 2)
 
         else:
             if action == "aggregate":
@@ -509,11 +510,11 @@ class ReportHandler(tornado.web.RequestHandler):
                     results[bsonobj["_id"]["dir"]] = {}
 
                # Add function count data
-                funcCount = bsonobj["funcCount"]
-                funcCovCount = bsonobj["funcCovCount"]
-                results[bsonobj["_id"]["dir"]]["funcCount"] = bsonobj["funcCount"]
-                results[bsonobj["_id"]["dir"]]["funcCovCount"] = bsonobj["funcCovCount"]
-                results[bsonobj["_id"]["dir"]]["funcCovPercentage"] = round(float(funcCovCount)/funcCount * 100, 2)
+                func_count = bsonobj["func_count"]
+                func_cov_count = bsonobj["func_cov_count"]
+                results[bsonobj["_id"]["dir"]]["func_count"] = bsonobj["func_count"]
+                results[bsonobj["_id"]["dir"]]["func_cov_count"] = bsonobj["func_cov_count"]
+                results[bsonobj["_id"]["dir"]]["func_cov_percentage"] = round(float(func_cov_count)/func_count * 100, 2)
 
 
     @tornado.web.asynchronous
@@ -547,7 +548,7 @@ class ReportHandler(tornado.web.RequestHandler):
             clip=len("src/mongo/")
 
             # Get meta document 
-            doc = yield self.application.getMetaDocument(build_id, git_hash=git_hash)
+            doc = yield self.application.get_meta_doc(build_id, git_hash=git_hash)
     
             if not doc:
                 self.render("templates/error.html", additional_info={"errorSources": ["Build ID", "Git hash"]})
@@ -565,12 +566,12 @@ class ReportHandler(tornado.web.RequestHandler):
             if "test_name" in args and urllib.unquote(args["test_name"][0]) != "All tests":
                 test_name = urllib.unquote(args.get("test_name")[0])
                 additional_info["test_name"] = test_name
-                yield self.getBuildGitHashResults(results, "line", git_hash, build_id, test_name=test_name)
-                yield self.getBuildGitHashResults(results, "func", git_hash, build_id, test_name=test_name)
+                yield self.get_build_ghash_results(results, "line", git_hash, build_id, test_name=test_name)
+                yield self.get_build_ghash_results(results, "func", git_hash, build_id, test_name=test_name)
 
             else:
-                yield self.getBuildGitHashResults(results, "line", git_hash, build_id)
-                yield self.getBuildGitHashResults(results, "func", git_hash, build_id)
+                yield self.get_build_ghash_results(results, "line", git_hash, build_id)
+                yield self.get_build_ghash_results(results, "func", git_hash, build_id)
 
             if not results:
                 self.render("templates/error.html", additional_info={"errorSources": ["Build ID", "Git hash", "Test name"]})
@@ -623,13 +624,13 @@ class CompareHandler(tornado.web.RequestHandler):
                 directory = urllib.unquote(args.get("dir")[0])
 
                 # Get coverage comparison data
-                yield self.getComparisonData(results, build_ids, directory=directory)
+                yield self.get_comparison_data(results, build_ids, directory=directory)
 
                 if not results:
                     self.render("templates/error.html", additional_info={"errorSources": ["Build ID 1", "Build ID 2", "Directory"]})
                     return
 
-                self.addCoverageComparison(results)
+                self.add_coverage_comparison(results)
 
                 self.render("templates/dirCompare.html", build_id1=build_id1, build_id2=build_id2, results=results, directory=directory)
             
@@ -639,13 +640,13 @@ class CompareHandler(tornado.web.RequestHandler):
                 build_id2 = args["build_id2"][0]
 
                 # Retrieve git hashes
-                doc = yield self.application.getMetaDocument(build_id1)
+                doc = yield self.application.get_meta_doc(build_id1)
                 if not doc:
                     self.render("templates/error.html", additional_info={"errorSources": ["Build ID 1", "Build ID 2"]})
                     return
                 git_hash1 = doc["_id"]["git_hash"]
 
-                doc = yield self.application.getMetaDocument(build_id2)
+                doc = yield self.application.get_meta_doc(build_id2)
                 if not doc:
                     self.render("templates/error.html", additional_info={"errorSources": ["Build ID 2"]})
                     return
@@ -654,31 +655,31 @@ class CompareHandler(tornado.web.RequestHandler):
                 file_name = urllib.unquote(args.get("file")[0])
 
                 # Request GitHub files
-                content1, lineCount1 = self.application.requestGitHubFile(git_hash1, file_name)
-                content2, lineCount2 = self.application.requestGitHubFile(git_hash2, file_name)
+                content1, line_count1 = self.application.get_ghub_file(git_hash1, file_name)
+                content2, line_count2 = self.application.get_ghub_file(git_hash2, file_name)
                 # Add syntax highlighting
-                fileContent1 = self.application.add_syntax_highlighting(content1, identifier="A")
-                fileContent2 = self.application.add_syntax_highlighting(content2, identifier="B")
+                file_content1 = self.application.add_syntax_highlighting(content1, identifier="A")
+                file_content2 = self.application.add_syntax_highlighting(content2, identifier="B")
 
-                self.render("templates/fileCompare.html", build_id1=build_id1, build_id2=build_id2, fileContent1=fileContent1, fileContent2=fileContent2, file_name=file_name, git_hash1=git_hash1, git_hash2=git_hash2, lineCount1=lineCount1, lineCount2=lineCount2)
+                self.render("templates/fileCompare.html", build_id1=build_id1, build_id2=build_id2, file_content1=file_content1, file_content2=file_content2, file_name=file_name, git_hash1=git_hash1, git_hash2=git_hash2, line_count1=line_count1, line_count2=line_count2)
            
             # Build comparison
             else:
                 results = {}
                 # Get coverage comparison data
-                yield self.getComparisonData(results, build_ids)
+                yield self.get_comparison_data(results, build_ids)
 
                 if not results:
                     self.render("templates/error.html", additional_info={"errorSources": ["Build ID 1", "Build ID 2"]})
                     return
 
-                self.addCoverageComparison(results)
+                self.add_coverage_comparison(results)
     
                 self.render("templates/buildCompare.html", build_id1=build_id1, 
                             build_id2=build_id2, results=results)
     
     @gen.coroutine            
-    def getComparisonData(self, results, build_ids, directory=None):           
+    def get_comparison_data(self, results, build_ids, directory=None):           
         """Get coverage comparison data for build_ids."""
         for i in range(len(build_ids)):
 
@@ -691,24 +692,24 @@ class CompareHandler(tornado.web.RequestHandler):
     
                 while (yield cursor.fetch_next):
                     bsonobj = cursor.next_object()
-                    amountAdded = 0
+                    amount_added = 0
                     if bsonobj["count"] != 0:
-                        amountAdded = 1
+                        amount_added = 1
                         
                     # Check if there exists an entry for this file
                     if bsonobj["_id"]["file"] in results:
-                        if "lineCovCount" + str(i+1) in results[bsonobj["_id"]["file"]]:
-                            results[bsonobj["_id"]["file"]]["lineCovCount" + str(i+1)]+= amountAdded
-                            results[bsonobj["_id"]["file"]]["lineCount" + str(i+1)] += 1
+                        if "line_cov_count" + str(i+1) in results[bsonobj["_id"]["file"]]:
+                            results[bsonobj["_id"]["file"]]["line_cov_count" + str(i+1)]+= amount_added
+                            results[bsonobj["_id"]["file"]]["line_count" + str(i+1)] += 1
                         else:
-                            results[bsonobj["_id"]["file"]]["lineCovCount" + str(i+1)] = amountAdded
-                            results[bsonobj["_id"]["file"]]["lineCount" + str(i+1)] = 1
+                            results[bsonobj["_id"]["file"]]["line_cov_count" + str(i+1)] = amount_added
+                            results[bsonobj["_id"]["file"]]["line_count" + str(i+1)] = 1
                         
                     # Otherwise, create a new entry
                     else:
                         results[bsonobj["_id"]["file"]] = {}
-                        results[bsonobj["_id"]["file"]]["lineCovCount" + str(i+1)] = amountAdded
-                        results[bsonobj["_id"]["file"]]["lineCount" + str(i+1)] = 1
+                        results[bsonobj["_id"]["file"]]["line_cov_count" + str(i+1)] = amount_added
+                        results[bsonobj["_id"]["file"]]["line_count" + str(i+1)] = 1
     
             else:
                 query = {"_id.build_id": build_ids[i]}
@@ -718,58 +719,58 @@ class CompareHandler(tornado.web.RequestHandler):
                     bsonobj = cursor.next_object()
                     if not bsonobj["_id"]["dir"] in results:
                         results[bsonobj["_id"]["dir"]] = {}
-                    dirEntry = results[bsonobj["_id"]["dir"]]
-                    dirEntry["lineCount" + str(i+1)] = bsonobj["lineCount"]
-                    dirEntry["lineCovCount" + str(i+1)] = bsonobj["lineCovCount"]
-                    dirEntry["lineCovPercentage" + str(i+1)] = bsonobj["lineCovPercentage"]
+                    dir_entry = results[bsonobj["_id"]["dir"]]
+                    dir_entry["line_count" + str(i+1)] = bsonobj["line_count"]
+                    dir_entry["line_cov_count" + str(i+1)] = bsonobj["line_cov_count"]
+                    dir_entry["line_cov_percentage" + str(i+1)] = bsonobj["line_cov_percentage"]
 
                     
             # Add line and function coverage percentage data
             for key in results.keys():
-                if "lineCovCount" + str(i+1) in results[key]:
-                    results[key]["lineCovPercentage" + str(i+1)] = round(float(results[key]["lineCovCount" + str(i+1)])/results[key]["lineCount" + str(i+1)] * 100, 2)
+                if "line_cov_count" + str(i+1) in results[key]:
+                    results[key]["line_cov_percentage" + str(i+1)] = round(float(results[key]["line_cov_count" + str(i+1)])/results[key]["line_count" + str(i+1)] * 100, 2)
 
 
-    def addCoverageComparison(self, results):
+    def add_coverage_comparison(self, results):
         """Add coverage comparison data to results."""
         for key in results.keys():
             entry = results[key]
 
-            # Either lineCount1 or lineCount2 is missing
-            if not ("lineCount1" in entry and "lineCount2" in entry):
+            # Either line_count1 or line_count2 is missing
+            if not ("line_count1" in entry and "line_count2" in entry):
                 entry["highlight"] = "warning"
-                if "lineCount1" in entry:
-                    entry["coverageComparison"] = "?"
-                    entry["lineCount2"] = "N/A"
-                    entry["lineCovCount2"] = "N/A"
-                    entry["lineCovPercentage2"] = "N/A"
+                if "line_count1" in entry:
+                    entry["coverage_comparison"] = "?"
+                    entry["line_count2"] = "N/A"
+                    entry["line_cov_count2"] = "N/A"
+                    entry["line_cov_percentage2"] = "N/A"
                 else:
-                    entry["coverageComparison"] = "?"
-                    entry["lineCount1"] = "N/A"
-                    entry["lineCovCount1"] = "N/A"
-                    entry["lineCovPercentage1"] = "N/A"
+                    entry["coverage_comparison"] = "?"
+                    entry["line_count1"] = "N/A"
+                    entry["line_cov_count1"] = "N/A"
+                    entry["line_cov_percentage1"] = "N/A"
                 continue
             
-            # lineCount1 and lineCount2 are present; do comparison
-            if entry["lineCovPercentage1"] != entry["lineCovPercentage2"]:
-                if entry["lineCovPercentage1"] > entry["lineCovPercentage2"]:
-                    entry["coverageComparison"] = "-" 
+            # line_count1 and line_count2 are present; do comparison
+            if entry["line_cov_percentage1"] != entry["line_cov_percentage2"]:
+                if entry["line_cov_percentage1"] > entry["line_cov_percentage2"]:
+                    entry["coverage_comparison"] = "-" 
                     entry["highlight"] = "danger"
                 else:
-                    entry["coverageComparison"] = "+"
+                    entry["coverage_comparison"] = "+"
                     entry["highlight"] = "success"
 
             # The two percentages are equal
             else:
-                if entry["lineCovPercentage1"] == 100:
-                    entry["coverageComparison"] = " "
+                if entry["line_cov_percentage1"] == 100:
+                    entry["coverage_comparison"] = " "
 
                 # The two percentages are equal and not 100
                 else:
-                    if entry["lineCount1"] == entry["lineCount2"]:
-                        entry["coverageComparison"] = " "
+                    if entry["line_count1"] == entry["line_count2"]:
+                        entry["coverage_comparison"] = " "
                     else:
-                        entry["coverageComparison"] = "N"
+                        entry["coverage_comparison"] = "N"
                         entry["highlight"] = "warning"
 
 

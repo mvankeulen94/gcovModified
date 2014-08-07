@@ -72,16 +72,16 @@
      <tr>
       <td><a href="/report?build_id={{ url_escape(result['_id']['build_id']) }}&git_hash={{ url_escape(result['_id']['git_hash']) }}" data-toggle="tooltip" title="{{ result['_id']['build_id'] }}"> {{ result['_id']['git_hash'] }}</a></td>
       <td>{{ result['date'] }}</td>
-      {% if 'lineCount' in result %}
-      <td>{{ result['lineCovCount'] }} / {{ result['lineCount'] }}</td>
-      <td>{{ result['lineCovPercentage'] }}</td>
+      {% if 'line_count' in result %}
+      <td>{{ result['line_cov_count'] }} / {{ result['line_count'] }}</td>
+      <td>{{ result['line_cov_percentage'] }}</td>
       {% else %}
       <td> 0 / 0 </td>
       <td>0.0%</td>
       {% end %}
-      {% if 'funcCount' in result %}
-      <td>{{ result['funcCovCount'] }} / {{ result['funcCount'] }}</td>
-      <td>{{ result['funcCovPercentage'] }}</td>
+      {% if 'func_count' in result %}
+      <td>{{ result['func_cov_count'] }} / {{ result['func_count'] }}</td>
+      <td>{{ result['func_cov_percentage'] }}</td>
       {% else %}
       <td> 0 / 0 </td>
       <td>0.0%</td>
