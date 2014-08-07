@@ -253,9 +253,11 @@ class DataHandler(tornado.web.RequestHandler):
             # Add line and function coverage percentage data
             for key in results.keys():
                 if "line_count" in results[key]:
-                    results[key]["line_cov_percentage"] = round(float(results[key]["line_cov_count"])/results[key]["line_count"] * 100, 2)
+                    percentage = float(results[key]["line_cov_count"])/results[key]["line_count"] * 100
+                    results[key]["line_cov_percentage"] = round(percentage, 2)
                 if "func_count" in results[key]:
-                    results[key]["func_cov_percentage"] = round(float(results[key]["func_cov_count"])/results[key]["func_count"] * 100, 2)
+                    percentage = float(results[key]["func_cov_count"])/results[key]["func_count"] * 100
+                    results[key]["func_cov_percentage"] = round(percentage, 2)
 
             self.render("templates/data.html", results=results, additional_info=additional_info)
 
@@ -395,8 +397,9 @@ class CacheHandler(tornado.web.RequestHandler):
         json_args["date"] = datetime.datetime.strptime(json_args["date"], "%Y-%m-%dT%H:%M:%S.%f")
 
         # Insert meta-information
+        query = {"_id.build_id": build_id, "_id.git_hash": git_hash}
         try:
-            result = yield self.application.meta_collection.update({"_id.build_id": build_id, "_id.git_hash": git_hash}, json_args, upsert=True)
+            result = yield self.application.meta_collection.update(query, json_args, upsert=True)
         except tornado.httpclient.HTTPError as e:
             self.write_error(422)
             return
@@ -405,7 +408,8 @@ class CacheHandler(tornado.web.RequestHandler):
         line_pipeline = copy.copy(pipelines.line_pipeline)
         function_pipeline = copy.copy(pipelines.function_pipeline)
 
-        match = {"$match": {"build_id": json_args["_id"]["build_id"], "git_hash": json_args["_id"]["git_hash"],
+        match = {"$match": {"build_id": json_args["_id"]["build_id"], 
+                            "git_hash": json_args["_id"]["git_hash"],
                             "file": re.compile("^src\/mongo")}}
 
         line_pipeline.insert(0, match)
@@ -650,7 +654,10 @@ class CompareHandler(tornado.web.RequestHandler):
             file_content1 = add_syntax_highlighting(content1, identifier="A")
             file_content2 = add_syntax_highlighting(content2, identifier="B")
 
-            self.render("templates/fileCompare.html", build_id1=build_id1, build_id2=build_id2, file_content1=file_content1, file_content2=file_content2, file_name=file_name, git_hash1=git_hash1, git_hash2=git_hash2, line_count1=line_count1, line_count2=line_count2)
+            self.render("templates/fileCompare.html", build_id1=build_id1, build_id2=build_id2,
+                        file_content1=file_content1, file_content2=file_content2, 
+                        file_name=file_name, git_hash1=git_hash1, git_hash2=git_hash2, 
+                        line_count1=line_count1, line_count2=line_count2)
            
         # Build comparison
         else:
@@ -712,12 +719,13 @@ class CompareHandler(tornado.web.RequestHandler):
                     dir_entry["line_count" + str(i+1)] = bsonobj["line_count"]
                     dir_entry["line_cov_count" + str(i+1)] = bsonobj["line_cov_count"]
                     dir_entry["line_cov_percentage" + str(i+1)] = bsonobj["line_cov_percentage"]
-
                     
             # Add line and function coverage percentage data
             for key in results.keys():
                 if "line_cov_count" + str(i+1) in results[key]:
-                    results[key]["line_cov_percentage" + str(i+1)] = round(float(results[key]["line_cov_count" + str(i+1)])/results[key]["line_count" + str(i+1)] * 100, 2)
+                    percentage = (float(results[key]["line_cov_count" + str(i+1)])/
+                                  results[key]["line_count" + str(i+1)] * 100)
+                    results[key]["line_cov_percentage" + str(i+1)] = round(percentage, 2)
 
 
     def add_coverage_comparison(self, results):
@@ -728,16 +736,17 @@ class CompareHandler(tornado.web.RequestHandler):
             # Either line_count1 or line_count2 is missing
             if not ("line_count1" in entry and "line_count2" in entry):
                 entry["highlight"] = "warning"
+                entry["coverage_comparison"] = "?"
+
                 if "line_count1" in entry:
-                    entry["coverage_comparison"] = "?"
                     entry["line_count2"] = "N/A"
                     entry["line_cov_count2"] = "N/A"
                     entry["line_cov_percentage2"] = "N/A"
                 else:
-                    entry["coverage_comparison"] = "?"
                     entry["line_count1"] = "N/A"
                     entry["line_cov_count1"] = "N/A"
                     entry["line_cov_percentage1"] = "N/A"
+
                 continue
             
             # line_count1 and line_count2 are present; do comparison
