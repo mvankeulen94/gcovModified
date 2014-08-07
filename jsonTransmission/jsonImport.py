@@ -33,7 +33,7 @@ import json
 import tornado.httpclient
 import datetime 
 
-def doJSONImport():
+def do_json_import():
     """Insert all JSON files from root directory and below into database."""
 
     parser = optparse.OptionParser(usage="""\
@@ -119,7 +119,7 @@ def doJSONImport():
  
     if options.recurse:
         # Walk through files in root
-        for dirPath, subDirs, file_names in os.walk(options.root):
+        for dir_path, sub_dirs, file_names in os.walk(options.root):
             for file_name in file_names:
                 # TODO: Add option to specify pattern
                 if not file_name.endswith(".json"):
@@ -128,7 +128,7 @@ def doJSONImport():
                 print "\nNow importing " + file_name + ":\n"
 
                 # Insert the record for a file
-                doImportFile(os.path.join(dirPath, file_name), options.ghash, options.build, options.tname, http_client, options.connectstr)
+                do_import_file(os.path.join(dir_path, file_name), options.ghash, options.build, options.tname, http_client, options.connectstr)
     
     else:
         # Import all json files in current directory
@@ -137,20 +137,20 @@ def doJSONImport():
             # TODO: Add option to specify pattern
             if not f.endswith(".json"):
                 continue
-            doImportFile(f, options.ghash, options.build, options.tname, http_client, options.connectstr)
+            do_import_file(f, options.ghash, options.build, options.tname, http_client, options.connectstr)
 
     # Gather meta info
-    metaRecord = {}
-    metaRecord["_id"] = {"build_id": options.build,
+    meta_record = {}
+    meta_record["_id"] = {"build_id": options.build,
                          "git_hash": options.ghash}
-    metaRecord["date"] = options.date 
-    metaRecord["branch"] = options.branch
-    metaRecord["platform"] = options.pform
+    meta_record["date"] = options.date 
+    meta_record["branch"] = options.branch
+    meta_record["platform"] = options.pform
        
     request = tornado.httpclient.HTTPRequest(url=options.connectstr + "/meta", 
                                              method="POST", 
                                              request_timeout=300.0,
-                                             body=json.dumps(metaRecord))
+                                             body=json.dumps(meta_record))
     try:
         response = http_client.fetch(request)
         print response.body
@@ -160,7 +160,7 @@ def doJSONImport():
     http_client.close()
 
 
-def doImportFile(file_name, git_hash, build_id, test_name, http_client, url):
+def do_import_file(file_name, git_hash, build_id, test_name, http_client, url):
     """Import contents of a single file into database."""
     for line in open(file_name, "r"):
         if line == "\n":
@@ -170,8 +170,8 @@ def doImportFile(file_name, git_hash, build_id, test_name, http_client, url):
         record["build_id"] = build_id 
         record["test_name"] = test_name 
     
-        fileIndex = record["file"].rfind("/") + 1
-        record["dir"] = record["file"][: fileIndex]
+        file_index = record["file"].rfind("/") + 1
+        record["dir"] = record["file"][: file_index]
     
         request = tornado.httpclient.HTTPRequest(
                                              url=url,
@@ -186,4 +186,4 @@ def doImportFile(file_name, git_hash, build_id, test_name, http_client, url):
             print "Error: ", e
 
 
-doJSONImport()
+do_json_import()

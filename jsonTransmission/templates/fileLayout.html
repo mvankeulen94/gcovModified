@@ -46,26 +46,26 @@ table, div.fileTable {
     <thead>
       <tr>
        <th><h2>File</h2></th>
-       <th><h2>{{ additionalInfo['file_name'] }}</h2></th>
+       <th><h2>{{ additional_info['file_name'] }}</h2></th>
       </tr>
      </thead>
      <tbody>
       <tr>
        <td>Build ID</td>
-       <td>{{ additionalInfo['build_id'] }}</td>
+       <td>{{ additional_info['build_id'] }}</td>
       </tr>
       <tr>
        <td>Git hash</td>
-       <td>{{ additionalInfo['git_hash'] }}</td>
+       <td>{{ additional_info['git_hash'] }}</td>
       </tr>
       <tr>
        <td>Branch</td>
-       <td>{{ additionalInfo['branch'] }}</td>
+       <td>{{ additional_info['branch'] }}</td>
       </tr>
-      {% if 'test_name' in additionalInfo %}
+      {% if 'test_name' in additional_info %}
       <tr>
        <td>Test name</td>
-       <td>{{ additionalInfo['test_name'] }}</td>
+       <td>{{ additional_info['test_name'] }}</td>
       </tr>
       {% end %}
      </tbody>
