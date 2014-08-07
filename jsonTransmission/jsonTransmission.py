@@ -110,7 +110,7 @@ def get_ghub_file(token, git_hash, file_name):
         line_count = content.count("\n")
     
     except tornado.httpclient.HTTPError:
-        content = "None"
+        content = None 
         line_count = 0
     
     http_client.close()
@@ -312,7 +312,7 @@ class DataHandler(tornado.web.RequestHandler):
                 file_name = urllib.unquote(args["file"][0])
                 (content, line_count) = get_ghub_file(self.application.token, git_hash, file_name)
 
-                if content == "None":
+                if content is None:
                     self.render("templates/error.html", additional_info={"errorSources": ["Build ID", "Git hash", "File name"]})
                     return
                 
@@ -650,6 +650,12 @@ class CompareHandler(tornado.web.RequestHandler):
             content1, line_count1 = get_ghub_file(self.application.token, git_hash1, file_name)
             content2, line_count2 = get_ghub_file(self.application.token, git_hash2, file_name)
 
+            if content1 is None:
+                content1 = "This file is not available"
+
+            if content2 is None:
+                content2 = "This file is not available"
+           
             # Add syntax highlighting
             file_content1 = add_syntax_highlighting(content1, identifier="A")
             file_content2 = add_syntax_highlighting(content2, identifier="B")
