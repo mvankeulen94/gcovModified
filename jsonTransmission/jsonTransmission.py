@@ -77,7 +77,6 @@ class Application(tornado.web.Application):
             (r"/", tornado.web.RedirectHandler, {"url": "/report"}),
         ],)
 
-# TODO: move to outside Application class
 @gen.coroutine
 def get_meta_doc(collection, build_id, git_hash=None):
     """Retrieve meta document for build_id (and git hash)."""
@@ -129,7 +128,6 @@ class MainHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @gen.coroutine
     def post(self):
-        # TODO: GET method with appropriate redirect for user friendliness?
         # redirect to /report home page
         if self.request.headers.get("Content-Type") == "application/json":
             json_args = json_decode(self.request.body)
@@ -227,7 +225,7 @@ class DataHandler(tornado.web.RequestHandler):
                           "build_id": build_id, 
                           "branch": branch}
 
-        if "dir" in args or "test_name" in args and "dir" in args:
+        if "dir" in args or ("test_name" in args and "dir" in args):
 
             directory = urllib.unquote(args.get("dir")[0])
             additional_info["directory"] = directory
@@ -268,6 +266,7 @@ class DataHandler(tornado.web.RequestHandler):
             
             # Generate line coverage results
             file_name = urllib.unquote(args.get("file")[0])
+            test_name = None
 
             additional_info["file_name"] = file_name
             
@@ -277,19 +276,15 @@ class DataHandler(tornado.web.RequestHandler):
             
             # If coverage data is needed, do aggregation
             if "counts" in args and args["counts"][0] == "true":
-                # Send only counts data to client
-                if "test_name" in args:
-                    file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
-                    match = {"$match": {"build_id": build_id, "git_hash": git_hash, 
-                                        "test_name": test_name, "file": file_name}}
-                    file_line_pipeline.insert(0, match)
+
+                # Fill pipeline with git_hash, build_id, file_name (and test_name) info
+                match = {"$match": {"build_id": build_id, "git_hash": git_hash, "file": file_name}}
+                file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
+
+                if test_name:
+                    match["$match"]["test_name"] = test_name
        
-                else:
-                    # Fill pipeline with git_hash, build_id, and file_name info
-                    file_line_pipeline = copy.copy(pipelines.file_line_pipeline)
-                    match = {"$match": {"build_id": build_id, "git_hash": git_hash, "file": file_name}}
-                    file_line_pipeline.insert(0, match)
-    
+                file_line_pipeline.insert(0, match)
                 cursor =  yield self.application.collection.aggregate(file_line_pipeline, cursor={})
                 result = {}
                 result["counts"] = {}
@@ -534,7 +529,7 @@ class ReportHandler(tornado.web.RequestHandler):
             self.render("templates/report.html", results=results)
 
         else:    
-            if args.get("git_hash") == None or args.get("build_id") == None:
+            if args.get("git_hash") is None or args.get("build_id") is None:
                 self.render("templates/error.html", additional_info={"errorSources": ["Git hash", "Build ID"]})
                 return
 
@@ -605,74 +600,72 @@ class CompareHandler(tornado.web.RequestHandler):
         args = self.request.arguments 
         if len(args) == 0:
             return
+        
+        if not ("build_id1" in args and "build_id2" in args):
+            return
 
-        if "build_id1" in args:
-            if not "build_id2" in args:
+        build_ids = [urllib.unquote(args["build_id1"][0]), urllib.unquote(args["build_id2"][0])]
+        build_id1 = build_ids[0]
+        build_id2 = build_ids[1]
+
+        # Directory comparison
+        if "dir" in args:
+            results = {}
+            directory = urllib.unquote(args.get("dir")[0])
+
+            # Get coverage comparison data
+            yield self.get_comparison_data(results, build_ids, directory=directory)
+
+            if not results:
+                self.render("templates/error.html", additional_info={"errorSources": ["Build ID 1", "Build ID 2", "Directory"]})
                 return
 
-            build_ids = [urllib.unquote(args["build_id1"][0]), urllib.unquote(args["build_id2"][0])]
-            build_id1 = build_ids[0]
-            build_id2 = build_ids[1]
+            self.add_coverage_comparison(results)
 
-            # Directory comparison
-            if "dir" in args:
-                results = {}
-                directory = urllib.unquote(args.get("dir")[0])
-
-                # Get coverage comparison data
-                yield self.get_comparison_data(results, build_ids, directory=directory)
-
-                if not results:
-                    self.render("templates/error.html", additional_info={"errorSources": ["Build ID 1", "Build ID 2", "Directory"]})
-                    return
-
-                self.add_coverage_comparison(results)
-
-                self.render("templates/dirCompare.html", build_id1=build_id1, build_id2=build_id2, results=results, directory=directory)
+            self.render("templates/dirCompare.html", build_id1=build_id1, build_id2=build_id2, results=results, directory=directory)
             
-            # File comparison
-            elif "file" in args:
-                build_id1 = args["build_id1"][0] 
-                build_id2 = args["build_id2"][0]
+        # File comparison
+        elif "file" in args:
 
-                # Retrieve git hashes
-                doc = yield get_meta_doc(self.application.meta_collection, build_id1)
-                if not doc:
-                    self.render("templates/error.html", additional_info={"errorSources": ["Build ID 1", "Build ID 2"]})
-                    return
-                git_hash1 = doc["_id"]["git_hash"]
+            # Retrieve git hashes
+            doc = yield get_meta_doc(self.application.meta_collection, build_id1)
+            if not doc:
+                self.render("templates/error.html", additional_info={"errorSources": ["Build ID 1", "Build ID 2"]})
+                return
+            git_hash1 = doc["_id"]["git_hash"]
 
-                doc = yield get_meta_doc(self.application.meta_collection, build_id2)
-                if not doc:
-                    self.render("templates/error.html", additional_info={"errorSources": ["Build ID 2"]})
-                    return
-                git_hash2 = doc["_id"]["git_hash"]
+            doc = yield get_meta_doc(self.application.meta_collection, build_id2)
+            if not doc:
+                self.render("templates/error.html", additional_info={"errorSources": ["Build ID 2"]})
+                return
+            git_hash2 = doc["_id"]["git_hash"]
 
-                file_name = urllib.unquote(args.get("file")[0])
+            file_name = urllib.unquote(args.get("file")[0])
 
-                # Request GitHub files
-                content1, line_count1 = get_ghub_file(self.application.token, git_hash1, file_name)
-                content2, line_count2 = get_ghub_file(self.application.token, git_hash2, file_name)
-                # Add syntax highlighting
-                file_content1 = add_syntax_highlighting(content1, identifier="A")
-                file_content2 = add_syntax_highlighting(content2, identifier="B")
+            # Request GitHub files
+            content1, line_count1 = get_ghub_file(self.application.token, git_hash1, file_name)
+            content2, line_count2 = get_ghub_file(self.application.token, git_hash2, file_name)
 
-                self.render("templates/fileCompare.html", build_id1=build_id1, build_id2=build_id2, file_content1=file_content1, file_content2=file_content2, file_name=file_name, git_hash1=git_hash1, git_hash2=git_hash2, line_count1=line_count1, line_count2=line_count2)
+            # Add syntax highlighting
+            file_content1 = add_syntax_highlighting(content1, identifier="A")
+            file_content2 = add_syntax_highlighting(content2, identifier="B")
+
+            self.render("templates/fileCompare.html", build_id1=build_id1, build_id2=build_id2, file_content1=file_content1, file_content2=file_content2, file_name=file_name, git_hash1=git_hash1, git_hash2=git_hash2, line_count1=line_count1, line_count2=line_count2)
            
-            # Build comparison
-            else:
-                results = {}
-                # Get coverage comparison data
-                yield self.get_comparison_data(results, build_ids)
+        # Build comparison
+        else:
+            results = {}
+            # Get coverage comparison data
+            yield self.get_comparison_data(results, build_ids)
 
-                if not results:
-                    self.render("templates/error.html", additional_info={"errorSources": ["Build ID 1", "Build ID 2"]})
-                    return
+            if not results:
+                self.render("templates/error.html", additional_info={"errorSources": ["Build ID 1", "Build ID 2"]})
+                return
 
-                self.add_coverage_comparison(results)
-    
-                self.render("templates/buildCompare.html", build_id1=build_id1, 
-                            build_id2=build_id2, results=results)
+            self.add_coverage_comparison(results)
+  
+            self.render("templates/buildCompare.html", build_id1=build_id1, 
+                        build_id2=build_id2, results=results)
     
     @gen.coroutine            
     def get_comparison_data(self, results, build_ids, directory=None):           
