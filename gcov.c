@@ -38,7 +38,6 @@ along with Gcov; see the file COPYING3.  If not see
 #include "diagnostic.h"
 #include "version.h"
 #include "demangle.h"
-#include "list.h"
 
 #include <getopt.h>
 

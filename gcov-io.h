@@ -428,4 +428,24 @@ GCOV_LINKAGE time_t gcov_time (void);
 
 #endif /* !inhibit_libc  */
 
+/* linked list functions */
+struct intermediate_record {
+    struct intermediate_record *next;
+
+    char *key;
+    void *value;
+    const char *type;
+};
+
+struct intermediate_data {
+    struct intermediate_record *front;
+    struct intermediate_record *back;
+};
+
+void init_int_data(struct intermediate_data *);
+int is_empty_int_data(const struct intermediate_data *);
+void add_to_int_data(struct intermediate_data *, const char *, const void *, 
+               const char *);
+int print_and_delete_int_data(struct intermediate_data *, FILE *);
+
 #endif /* GCC_GCOV_IO_H */
