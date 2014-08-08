@@ -7,11 +7,9 @@ gcovModified
 
 ```bash
 cp gcov.c /local/build/gcc-4.9.0/gcc/
-cp list.c /local/build/gcc-4.9.0/gcc/
-cp list.h /local/build/gcc-4.9.0/gcc/
+cp gcov-io.c /local/build/gcc-4.9.0/gcc/
+cp gcov-io.h /local/build/gcc-4.9.0/gcc/
 ```
-
-###Add `list.o` to `GCOV_OBJS` variable in `Makefile.in`###
 
 ###Configure gcc###
 
@@ -87,7 +85,7 @@ The source of the program consists of several components:
 * `jsonTransmission.py` (the web app component)
 * `jsonImport.py` (the data import program)
 * `gcov.c` (the modified gcov source from gcc 4.9.0)
-* `list.c`/`list.h` (functions to assist gcov modification)
+* `gcov-io.c`/`gcov-io.h` (updated gcov files containing helper functions for coverage display)
 
 System information can be found in the `requirements.txt` file.
 
