@@ -679,49 +679,49 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
   unsigned line_num;    /* current line number.  */
   const line_t *line;   /* current line info ptr.  */
   function_t *fn;       /* current function info ptr. */
-  struct List list;     /* list to store info to be printed. */
+  struct intermediate_data list;     /* list to store info to be printed. */
   
-  initList(&list);
-  addToList(&list, "file", src->name, "string");   /* source file name */
+  init_int_data(&list);
+  add_to_int_data(&list, "file", src->name, "string");   /* source file name */
   
-  struct List functions; /* list to store function information. */
+  struct intermediate_data functions; /* list to store function information. */
   /* functions: [<function_name>: 
    *             {"ln": <line_number>, "ec": <execution_count>},
    *             ...] */
 
-  initList(&functions);
+  init_int_data(&functions);
   for (fn = src->functions; fn; fn = fn->line_next)
     {
-        struct List functionAttributes; /* store each function's info. */
-        initList(&functionAttributes);
+        struct intermediate_data functionAttributes; /* store each function's info. */
+        init_int_data(&functionAttributes);
      /* <function_name>: {"ln": <line_number>, "ec": <execution_count>} */
-        addToList(&functionAttributes, "nm", 
+        add_to_int_data(&functionAttributes, "nm", 
                   (flag_demangled_names ? fn->demangled_name : fn->name),
                   "string");
-        addToList(&functionAttributes, "ln", &(fn->line), "unsigned");
-        addToList(&functionAttributes, "ec", &fn->blocks[0].count, "long");
-        addToList(&functions, "", &functionAttributes, "object");
+        add_to_int_data(&functionAttributes, "ln", &(fn->line), "unsigned");
+        add_to_int_data(&functionAttributes, "ec", &fn->blocks[0].count, "long");
+        add_to_int_data(&functions, "", &functionAttributes, "object");
         
     }
-  addToList(&list, "functions", &functions, "array");
+  add_to_int_data(&list, "functions", &functions, "array");
 
-  struct List lc; /* list to store execution count of each line. */
+  struct intermediate_data lc; /* list to store execution count of each line. */
   /* lc: [{"ln": <line_number>, "ec": <execution_count>}, ...] */
-  initList(&lc);
-  struct List branch; /* list to store branching info. */
+  init_int_data(&lc);
+  struct intermediate_data branch; /* list to store branching info. */
   /* branch: [<line_number>: <branch_type>, ...] */
-  initList(&branch);
+  init_int_data(&branch);
  for (line_num = 1, line = &src->lines[line_num];
        line_num < src->num_lines;
        line_num++, line++)
     {
       arc_t *arc;
       if (line->exists) {
-        struct List lineInfo;
-        initList(&lineInfo);
-        addToList(&lineInfo, "ln", &line_num, "unsigned");
-        addToList(&lineInfo, "ec", &line->count, "long");
-        addToList(&lc, "", &lineInfo, "object");
+        struct intermediate_data lineInfo;
+        init_int_data(&lineInfo);
+        add_to_int_data(&lineInfo, "ln", &line_num, "unsigned");
+        add_to_int_data(&lineInfo, "ec", &line->count, "long");
+        add_to_int_data(&lc, "", &lineInfo, "object");
         /* <line_number>: <execution_count> */
       }
 
@@ -741,16 +741,16 @@ output_intermediate_file (FILE *gcov_file, source_t *src)
                   branch_type = (arc->count > 0) ? "taken" : "nottaken";
                 else
                   branch_type = "notexec";
-                addToList(&branch, format_gcov(line_num, 0, -1), branch_type, "string");
+                add_to_int_data(&branch, format_gcov(line_num, 0, -1), branch_type, "string");
               }
           }
 
       }
     }
 
-    addToList(&list, "branch", &branch, "array");
-    addToList(&list, "lc", &lc, "array");
-    if (printAndDeleteList(&list, gcov_file))
+    add_to_int_data(&list, "branch", &branch, "array");
+    add_to_int_data(&list, "lc", &lc, "array");
+    if (print_and_delete_int_data(&list, gcov_file))
         return 1;
     else
         return 0;
