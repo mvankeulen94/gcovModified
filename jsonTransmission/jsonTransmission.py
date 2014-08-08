@@ -49,6 +49,7 @@ import pipelines
 
 
 class Application(tornado.web.Application):
+    """Main coverage application"""
     def __init__(self):
         with open("config.conf", "r") as f:
             conf = json.loads(f.readline())
@@ -92,7 +93,8 @@ def get_meta_doc(collection, build_id, git_hash=None):
 
 def get_ghub_file(token, git_hash, file_name):
     """Retrieve file from GitHub with git_hash and file_name.
-
+    
+    token - GitHub API token
     Return highlighted file content and line count of content.
     """
     owner = "mongodb"
@@ -125,6 +127,7 @@ def add_syntax_highlighting(content, identifier=""):
 
     
 class MainHandler(tornado.web.RequestHandler):
+    """Handler for data insertion."""
     @tornado.web.asynchronous
     @gen.coroutine
     def post(self):
@@ -210,6 +213,7 @@ class DataHandler(tornado.web.RequestHandler):
         result = None # Dictionary to store query result
         git_hash = urllib.unquote(args.get("git_hash")[0])
         build_id = urllib.unquote(args.get("build_id")[0])
+
         # Get meta document 
         doc = yield get_meta_doc(self.application.meta_collection, build_id, git_hash=git_hash)
 
@@ -231,7 +235,7 @@ class DataHandler(tornado.web.RequestHandler):
             additional_info["directory"] = directory
             additional_info["clip"] = len(directory)
 
-            # Get line results
+            # Get line and function results
             results = {} # Store coverage data
 
             if "test_name" in args:
@@ -306,9 +310,9 @@ class DataHandler(tornado.web.RequestHandler):
 
                 self.write(json.dumps(result))
 
-            # Otherwise, obtain file content from github
+            # Otherwise, obtain file content from GitHub
             else: 
-                # Request file from github
+                # Request file from GitHub
                 file_name = urllib.unquote(args["file"][0])
                 (content, line_count) = get_ghub_file(self.application.token, git_hash, file_name)
 
@@ -318,6 +322,7 @@ class DataHandler(tornado.web.RequestHandler):
                 
                 # Add syntax highlighting
                 file_content = add_syntax_highlighting(content)
+
                 # Get meta document 
                 doc = yield get_meta_doc(self.application.meta_collection, build_id, git_hash=git_hash)
 
@@ -335,6 +340,7 @@ class DataHandler(tornado.web.RequestHandler):
 
 
 class CacheHandler(tornado.web.RequestHandler):
+    """Handler for data caching."""
     @tornado.web.asynchronous
     @gen.coroutine
     def post(self):
@@ -348,7 +354,6 @@ class CacheHandler(tornado.web.RequestHandler):
         git_hash = json_args["_id"]["git_hash"]
         build_id = json_args["_id"]["build_id"]
         self.write(git_hash + ", " + build_id)
-        # Add option to specify what pattern to start with
         pipeline = [{"$match":{"build_id": build_id, "git_hash": git_hash,
                                "file": re.compile("^src\/mongo")}}, 
                     {"$project":{"file":1, "lc":1}}, {"$unwind":"$lc"}, 
@@ -443,7 +448,7 @@ class CacheHandler(tornado.web.RequestHandler):
 
 
 class ReportHandler(tornado.web.RequestHandler):
-
+    """Handler for coverage homepage and directory displays."""
     @gen.coroutine
     def get_build_ghash_results(self, results, specifier, git_hash, build_id, test_name=None):
         """Retreieve coverage data for directories.
@@ -577,6 +582,7 @@ class ReportHandler(tornado.web.RequestHandler):
 
 
 class CoverageFormatter(HtmlFormatter):
+    """Formatter for coverage source syntax highlighting."""
     def __init__(self, identifier):
         HtmlFormatter.__init__(self, linenos="table")
         self.identifier = identifier
@@ -598,6 +604,7 @@ class CoverageFormatter(HtmlFormatter):
 
 
 class CompareHandler(tornado.web.RequestHandler):
+    """Handler for build comparison."""
     @tornado.web.asynchronous
     @gen.coroutine
     def get(self):
@@ -681,8 +688,12 @@ class CompareHandler(tornado.web.RequestHandler):
                         build_id2=build_id2, results=results)
     
     @gen.coroutine            
-    def get_comparison_data(self, results, build_ids, directory=None):           
-        """Get coverage comparison data for build_ids."""
+    def get_comparison_data(self, results, build_ids, directory=None):
+        """Get coverage comparison data for build_ids.
+        
+        results - dictionary in which to store coverage data
+        directory (optional) directory to compare
+        """
         for i in xrange(len(build_ids)):
 
             if directory: 
@@ -726,7 +737,7 @@ class CompareHandler(tornado.web.RequestHandler):
                     dir_entry["line_cov_count" + str(i+1)] = bsonobj["line_cov_count"]
                     dir_entry["line_cov_percentage" + str(i+1)] = bsonobj["line_cov_percentage"]
                     
-            # Add line and function coverage percentage data
+            # Add line coverage percentage data
             for key in results.keys():
                 if "line_cov_count" + str(i+1) in results[key]:
                     percentage = (float(results[key]["line_cov_count" + str(i+1)])/
@@ -779,6 +790,7 @@ class CompareHandler(tornado.web.RequestHandler):
 
 
 class StyleHandler(tornado.web.RequestHandler):
+    """Handler for CoverageFormatter CSS"""
     @tornado.web.asynchronous
     @gen.coroutine
     def get(self):

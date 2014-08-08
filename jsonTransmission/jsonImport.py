@@ -42,7 +42,7 @@ def do_json_import():
                                    [build_id] [connectionstring]
                                    [testname] [branch] [platform]""")
 
-    # add in command line options. Add mongo host/port combo later
+    # add in command line options.
     parser.add_option("-g", "--git-hash", dest="ghash",
                       help="git hash of code being tested",
                       default=None)
@@ -122,7 +122,6 @@ def do_json_import():
         # Walk through files in root
         for dir_path, sub_dirs, file_names in os.walk(options.root):
             for file_name in file_names:
-                # TODO: Add option to specify pattern
                 if not file_name.endswith(".json"):
                     continue
             
@@ -138,7 +137,6 @@ def do_json_import():
         files = [os.path.join(options.root, f) 
                  for f in os.listdir(options.root) if os.path.isfile(os.path.join(options.root, f))]
         for f in files:
-            # TODO: Add option to specify pattern
             if not f.endswith(".json"):
                 continue
             do_import_file(f, options.ghash, options.build, options.tname, 
