@@ -31,6 +31,20 @@ make j4
 for la in $(find -name \*.gcda); do <path_to_gcov> -i $la; done
 ```
 
+###Set up mongod with SSL connection###
+
+###Add indexes to data collection###
+```javascript
+db.<collection>.ensureIndex({"build_id": 1, "git_hash": 1, "file": 1})
+
+db.<collection>.ensureIndex({"build_id": 1, "git_hash": 1})
+
+db.<collection>.ensureIndex({"build_id": 1, "git_hash": 1, "test_name": 1, "file": 1})
+
+db.<collection>.ensureIndex({"build_id": 1, "dir":1})
+
+db.<collection>.ensureIndex({"build_id": 1, "file":1})
+```
 ###Set up config file for web app###
 `jsonTransmission.py` expects a config file entitled `config.conf` 
 in the directory from which `jsonTransmission.py` is run.
@@ -76,3 +90,10 @@ The source of the program consists of several components:
 * `list.c`/`list.h` (functions to assist gcov modification)
 
 System information can be found in the `requirements.txt` file.
+
+##To do##
+* Add option in `jsonImport.py` to specify pattern of file names to 
+import. 
+* Add option in `jsonTransmission.py` to select alternate directories
+besides `src/mongo` to search for build/git hash coverage results
+
