@@ -28,22 +28,22 @@
 
 #ifndef _LIST_H_
 #define _LIST_H_
-struct Node {
-    struct Node *next;
+struct intermediate_record {
+    struct intermediate_record *next;
 
     char *key;
     void *value;
     const char *type;
 };
 
-struct List {
-    struct Node *front;
-    struct Node *back;
+struct intermediate_data {
+    struct intermediate_record *front;
+    struct intermediate_record *back;
 };
 
-void initList(struct List *);
-int isEmptyList(const struct List *);
-void addToList(struct List *, const char *, const void *, 
+void init_int_data(struct intermediate_data *);
+int is_empty_int_data(const struct intermediate_data *);
+void add_to_int_data(struct intermediate_data *, const char *, const void *, 
                const char *);
-int printAndDeleteList(struct List *, FILE *);
+int print_and_delete_int_data(struct intermediate_data *, FILE *);
 #endif

@@ -1,6 +1,6 @@
 {% extends "tableLayout.html" %}
 {% block header %}
-   <title>{{ additionalInfo['buildID'] }}, {{ additionalInfo['gitHash'] }}</title>
+   <title>{{ additional_info['build_id'] }}, {{ additional_info['git_hash'] }}</title>
 {% end %}
 {% block body %}
    <div class="table-responsive">
@@ -14,20 +14,20 @@
      <tbody>
       <tr>
        <td>Build ID</td>
-       <td>{{ additionalInfo['buildID'] }}</td>
+       <td>{{ additional_info['build_id'] }}</td>
       </tr>
       <tr>
        <td>Git hash</td>
-       <td>{{ additionalInfo['gitHash'] }}</td>
+       <td>{{ additional_info['git_hash'] }}</td>
       </tr>
       <tr>
        <td>Branch</td>
-       <td>{{ additionalInfo['branch'] }}</td>
+       <td>{{ additional_info['branch'] }}</td>
       </tr>
-      {% if 'testName' in additionalInfo %}
+      {% if 'test_name' in additional_info %}
       <tr>
        <td>Test name</td>
-       <td>{{ additionalInfo['testName'] }}</td>
+       <td>{{ additional_info['test_name'] }}</td>
       </tr>
       {% end %}
      </tbody>
@@ -35,8 +35,8 @@
    </div>
    <div id="test-selection">
      <form action="/report" method="get">
-     <input value="{{ additionalInfo['buildID'] }}" name="buildID" type="hidden">
-     <input value="{{ additionalInfo['gitHash'] }}" name="gitHash" type="hidden">
+     <input value="{{ additional_info['build_id'] }}" name="build_id" type="hidden">
+     <input value="{{ additional_info['git_hash'] }}" name="git_hash" type="hidden">
      <div class="table-responsive">
       <table class="table table-striped">
        <thead>
@@ -47,10 +47,10 @@
        <tbody>
        <tr>
         <td>
-         <select class="form-control" name="testName">
+         <select class="form-control" name="test_name">
          <option value="All tests">All tests</option>
-         {% for testName in sorted(additionalInfo['testNames']) %}
-          <option value="{{ testName }}">{{ testName }}
+         {% for test_name in sorted(additional_info['test_names']) %}
+          <option value="{{ test_name }}">{{ test_name }}
           </option>
          {% end %}
          </select>
@@ -81,17 +81,17 @@
      <tbody>
       {% for key in sorted(dirResults.keys()) %}
       <tr>
-       <td><a href="/data?buildID={{ url_escape(additionalInfo['buildID']) }}&gitHash={{ url_escape(additionalInfo['gitHash']) }}&dir={{ url_escape(key) }}{% if 'testName' in additionalInfo %}&testName={{ url_escape(additionalInfo['testName'])}}{% end %}">{{ key[additionalInfo['clip']:] }}</a></td>
-       {% if 'lineCount' in dirResults[key] %}
-       <td>{{ dirResults[key]['lineCovCount'] }}/{{ dirResults[key]['lineCount'] }}</td>
-       <td>{{ dirResults[key]['lineCovPercentage'] }}</td>
+       <td><a href="/data?build_id={{ url_escape(additional_info['build_id']) }}&git_hash={{ url_escape(additional_info['git_hash']) }}&dir={{ url_escape(key) }}{% if 'test_name' in additional_info %}&test_name={{ url_escape(additional_info['test_name'])}}{% end %}">{{ key[additional_info['clip']:] }}</a></td>
+       {% if 'line_count' in dirResults[key] %}
+       <td>{{ dirResults[key]['line_cov_count'] }}/{{ dirResults[key]['line_count'] }}</td>
+       <td>{{ dirResults[key]['line_cov_percentage'] }}</td>
        {% else %}
        <td>0 / 0</td> 
        <td>0.0</td>
        {% end %}
-       {% if 'funcCount' in dirResults[key] %}
-       <td>{{ dirResults[key]['funcCovCount'] }}/{{ dirResults[key]['funcCount'] }}</td>
-       <td>{{ dirResults[key]['funcCovPercentage'] }}</td>
+       {% if 'func_count' in dirResults[key] %}
+       <td>{{ dirResults[key]['func_cov_count'] }}/{{ dirResults[key]['func_count'] }}</td>
+       <td>{{ dirResults[key]['func_cov_percentage'] }}</td>
        {% else %}
        <td>0 / 0</td>
        <td>0.0</td>

@@ -31,8 +31,8 @@ function_pipeline = [
 	{
 		"$project" : {
 			"file" : 1,
-			"gitHash" : 1,
-			"buildID" : 1,
+			"git_hash" : 1,
+			"build_id" : 1,
 			"dir" : 1,
 			"functions" : 1
 		}
@@ -44,8 +44,8 @@ function_pipeline = [
 		"$group" : {
 			"_id" : {
 				"file" : "$file",
-				"gitHash" : "$gitHash",
-				"buildID" : "$buildID",
+				"git_hash" : "$git_hash",
+				"build_id" : "$build_id",
 				"line" : "$functions.ln",
 				"dir" : "$dir"
 			},
@@ -58,8 +58,8 @@ function_pipeline = [
 		"$group" : {
 			"_id" : {
 				"file" : "$_id.file",
-				"gitHash" : "$_id.gitHash",
-				"buildID" : "$_id.buildID",
+				"git_hash" : "$_id.git_hash",
+				"build_id" : "$_id.build_id",
 				"line" : "$_id.line",
 				"dir" : "$_id.dir"
 			},
@@ -83,13 +83,13 @@ function_pipeline = [
 		"$group" : {
 			"_id" : {
 				"dir" : "$_id.dir",
-				"gitHash" : "$_id.gitHash",
-				"buildID" : "$_id.buildID"
+				"git_hash" : "$_id.git_hash",
+				"build_id" : "$_id.build_id"
 			},
-			"funcCount" : {
+			"func_count" : {
 				"$sum" : 1
 			},
-			"funcCovCount" : {
+			"func_cov_count" : {
 				"$sum" : "$hit"
 			}
 		}
@@ -100,8 +100,8 @@ line_pipeline = [
 	{
 		"$project" : {
 			"file" : 1,
-			"gitHash" : 1,
-			"buildID" : 1,
+			"git_hash" : 1,
+			"build_id" : 1,
 			"dir" : 1,
 			"lc" : 1
 		}
@@ -113,8 +113,8 @@ line_pipeline = [
 		"$group" : {
 			"_id" : {
 				"file" : "$file",
-				"gitHash" : "$gitHash",
-				"buildID" : "$buildID",
+				"git_hash" : "$git_hash",
+				"build_id" : "$build_id",
 				"line" : "$lc.ln",
 				"dir" : "$dir"
 			},
@@ -128,8 +128,8 @@ line_pipeline = [
 			"_id" : {
 				"file" : "$_id.file",
 				"line" : "$_id.line",
-				"gitHash" : "$_id.gitHash",
-				"buildID" : "$_id.buildID",
+				"git_hash" : "$_id.git_hash",
+				"build_id" : "$_id.build_id",
 				"dir" : "$_id.dir"
 			},
 			"hit" : {
@@ -152,13 +152,13 @@ line_pipeline = [
 		"$group" : {
 			"_id" : {
 				"dir" : "$_id.dir",
-				"gitHash" : "$_id.gitHash",
-				"buildID" : "$_id.buildID"
+				"git_hash" : "$_id.git_hash",
+				"build_id" : "$_id.build_id"
 			},
-			"lineCount" : {
+			"line_count" : {
 				"$sum" : 1
 			},
-			"lineCovCount" : {
+			"line_cov_count" : {
 				"$sum" : "$hit"
 			}
 		}
@@ -255,19 +255,19 @@ file_comp_pipeline = [
 testname_pipeline = [
 	{
 		"$project" : {
-			"buildID" : 1,
-			"gitHash" : 1,
-			"testName" : 1
+			"build_id" : 1,
+			"git_hash" : 1,
+			"test_name" : 1
 		}
 	},
 	{
 		"$group" : {
 			"_id" : {
-				"gitHash" : "$gitHash",
-				"buildID" : "$buildID"
+				"git_hash" : "$git_hash",
+				"build_id" : "$build_id"
 			},
-			"testNames" : {
-				"$addToSet" : "$testName"
+			"test_names" : {
+				"$addToSet" : "$test_name"
 			}
 		}
 	}

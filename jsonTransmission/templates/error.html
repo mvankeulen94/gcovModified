@@ -4,10 +4,10 @@
 {% end %}
 {% block body %}
 <h2>Oops!</h2>
-{% if 'errorSources' in additionalInfo %}
+{% if 'errorSources' in additional_info %}
 <p>It appears that one or more of the following fields were entered incorrectly:</p>
 <ul>
-    {% for source in additionalInfo['errorSources'] %}
+    {% for source in additional_info['errorSources'] %}
     <li>{{ source }}</li>
     {% end %}
 </ul>
