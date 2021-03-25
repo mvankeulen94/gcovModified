@@ -3,7 +3,7 @@ GitPython==0.3.2.RC1
 M2Crypto==0.20.2
 Markdown==2.0.1
 PIL==1.1.6
-PyYAML==3.10
+PyYAML==5.4
 Pygments==1.4
 argparse==1.2.1
 async==0.6.1
