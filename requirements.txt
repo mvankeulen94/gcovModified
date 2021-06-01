@@ -46,5 +46,5 @@ six==1.2.0
 smmap==0.8.2
 tornado==3.2.2
 urlgrabber==3.9.1
-urllib3==1.7
+urllib3==1.26.5
 yum-metadata-parser==1.1.4
